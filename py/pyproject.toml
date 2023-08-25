@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentry_usage_accountant"
+version = "0.0.1"
+author = "Sentry"
+description = "A library to account for shared resource usage"
+license = "BSL-1.1"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[tool.black]
+line-length = 79
+target-version = ['py38']
+skip-magic-trailing-comma = true
+
+[tool.coverage.run]
+plugins = ["covdefaults"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 100
+skip_covered = false
+exclude_lines = ["@pytest.mark.slow_integration"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "--durations=3 -vv --doctest-modules"
+testpaths = ["."]
+norecursedirs = [
+    "**/__pycache__",
+    "**/.*",
+    "venv",
+    "tmp*",
+    "*tmp",
+]
+python_files = ["*.py"]
+python_classes = ["Test", "Describe"]
+python_functions = ["test_"]
+
+[tool.pyright]
+include = ["."]
+exclude = [
+    "**/__pycache__",
+    "**/.*",
+    "venv",
+    "tmp*",
+    "*tmp",
+]
+
+pythonPlatform = "Linux"
+pythonVersion = "3.11"
+
+typeCheckingMode = "strict"
+
+# turn on all the checks not already enabled by "strict":
+reportCallInDefaultInitializer = "error"
+reportImplicitStringConcatenation = "error"
+reportMissingSuperCall = "error"
+reportPropertyTypeMismatch = "error"
+reportUninitializedInstanceVariable = "error"
+reportUnnecessaryTypeIgnoreComment = "error"

@@ -1,0 +1,1 @@
+DUMMY_CONSTANT = 1
