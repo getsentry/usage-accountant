@@ -1,6 +1,6 @@
-import usageaccountant
+from usageaccountant import UsageAccumulator, UsageType
 
 
 def test_accountant() -> None:
-    a = usageaccountant.DUMMY_CONSTANT
-    assert a == 1
+    accumulator = UsageAccumulator(1000)
+    accumulator.record("ASd", "ASd", 10.0, UsageType.BYTES)
