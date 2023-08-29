@@ -1,16 +1,26 @@
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
+from concurrent.futures import Future
 from enum import Enum
-from typing import MutableMapping, Optional, Tuple
+from json import dumps
+from typing import (Any, Deque, Mapping, MutableMapping, Optional, Sequence,
+                    Tuple)
+
+from arroyo.backends.kafka.configuration import build_kafka_configuration
+from arroyo.backends.kafka.consumer import KafkaPayload, KafkaProducer
+from arroyo.types import BrokerValue, Topic
 
 
-class UsageType(Enum):
+class UsageUnit(Enum):
     SECONDS = "seconds"
     BYTES = "bytes"
     BYTES_SEC = "bytes_sec"
 
 
-UsageKey = Tuple[int, str, str, UsageType]
+UsageKey = Tuple[int, str, str, UsageUnit]
+
+DEFAULT_TOPIC_NAME = "resources_usage_log"
+DEFAULT_QUEUE_SIZE = 10000
 
 
 class UsageAccumulator:
@@ -36,7 +46,15 @@ class UsageAccumulator:
     have a single source of truth for them anyway.
     """
 
-    def __init__(self, granularity_sec: int) -> None:
+    def __init__(
+        self,
+        granularity_sec: int,
+        topic_name: str = DEFAULT_TOPIC_NAME,
+        queue_size: int = DEFAULT_QUEUE_SIZE,
+        bootstrap_servers: Optional[Sequence[str]] = None,
+        default_kafka_config: Optional[Mapping[str, Any]] = None,
+        producer: Optional[KafkaProducer] = None,
+    ) -> None:
         """
         Initializes the accumulator. Instances should be kept around
         as much as possible as they preserve the instance of the
@@ -49,12 +67,36 @@ class UsageAccumulator:
         self.__usage_batch: MutableMapping[UsageKey, float] = defaultdict()
         self.__granularity_sec = granularity_sec
 
+        self.__topic = Topic(topic_name)
+
+        if producer is not None:
+            assert (
+                bootstrap_servers is None and default_kafka_config is None
+            ), "If producer is provided, initialization parameters cannot be provided"
+            self.__producer: KafkaProducer = producer
+
+        else:
+            assert (
+                bootstrap_servers is not None
+                and default_kafka_config is not None
+            ), "If no producer is provided, initialization parameters have to be provided"
+
+            self.__producer = KafkaProducer(
+                build_kafka_configuration(
+                    default_config=default_kafka_config,
+                    bootstrap_servers=bootstrap_servers,
+                )
+            )
+
+        self.__queue_size = queue_size
+        self.__futures: Deque[Future[BrokerValue[KafkaPayload]]] = deque()
+
     def record(
         self,
         resource_id: str,
         app_feature: str,
         amount: float,
-        usage_type: UsageType,
+        usage_type: UsageUnit,
     ) -> None:
         """
         Record a chunk of usage of a resource for a feature.
@@ -94,4 +136,29 @@ class UsageAccumulator:
         This method is supposed to be used when we are shutting
         down the program that was accumulating data.
         """
-        pass
+        self.__prune_queue()
+
+        for key, amount in self.__usage_batch.items():
+            if len(self.__futures) == self.__queue_size:
+                # TODO: Log here
+                break
+
+            message = {
+                "timestamp": key[0],
+                "shared_resource_id": key[1],
+                "app_feature": key[2],
+                "usage_unit": key[3].value,
+                "amount": amount,
+            }
+
+            result = self.__producer.produce(
+                self.__topic,
+                KafkaPayload(
+                    key=None, value=dumps(message).encode("utf-8"), headers=[]
+                ),
+            )
+            self.__futures.append(result)
+
+    def __prune_queue(self) -> None:
+        while self.__futures and self.__futures[0].done():
+            self.__futures.popleft()
