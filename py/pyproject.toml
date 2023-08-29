@@ -18,6 +18,10 @@ line-length = 79
 target-version = ['py38']
 skip-magic-trailing-comma = true
 
+[tool.isort]
+profile = "black"
+line_length = 79
+
 [tool.coverage.run]
 plugins = ["covdefaults"]
 

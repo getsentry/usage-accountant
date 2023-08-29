@@ -3,8 +3,15 @@ from collections import defaultdict, deque
 from concurrent.futures import Future
 from enum import Enum
 from json import dumps
-from typing import (Any, Deque, Mapping, MutableMapping, Optional, Sequence,
-                    Tuple)
+from typing import (
+    Any,
+    Deque,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 from arroyo.backends.kafka.configuration import build_kafka_configuration
 from arroyo.backends.kafka.consumer import KafkaPayload, KafkaProducer
@@ -72,14 +79,20 @@ class UsageAccumulator:
         if producer is not None:
             assert (
                 bootstrap_servers is None and default_kafka_config is None
-            ), "If producer is provided, initialization parameters cannot be provided"
+            ), (
+                "If producer is provided, initialization "
+                "parameters cannot be provided"
+            )
             self.__producer: KafkaProducer = producer
 
         else:
             assert (
                 bootstrap_servers is not None
                 and default_kafka_config is not None
-            ), "If no producer is provided, initialization parameters have to be provided"
+            ), (
+                "If no producer is provided, initialization parameters "
+                "have to be provided"
+            )
 
             self.__producer = KafkaProducer(
                 build_kafka_configuration(
