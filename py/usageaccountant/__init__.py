@@ -1,3 +1,3 @@
-from usageaccountant.accumulator import UsageAccumulator, UsageType
+from usageaccountant.accumulator import UsageAccumulator, UsageUnit
 
-__all__ = ("UsageAccumulator", "UsageType")
+__all__ = ("UsageAccumulator", "UsageUnit")

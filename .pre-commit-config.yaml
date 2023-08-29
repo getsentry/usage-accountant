@@ -26,7 +26,10 @@ repos:
     hooks:
     -   id: mypy
         args: [--config-file, py/mypy.ini, --strict]
-        additional_dependencies: [pytest==7.1.2]
+        additional_dependencies: [
+          pytest==7.1.2,
+          sentry-arroyo==2.14.5,
+        ]
         files: ^py/.+
   - repo: https://github.com/pycqa/isort
     rev: 5.8.0

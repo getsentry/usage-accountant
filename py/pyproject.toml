@@ -5,9 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sentry_usage_accountant"
 version = "0.0.1"
-author = "Sentry"
 description = "A library to account for shared resource usage"
-license = "BSL-1.1"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
