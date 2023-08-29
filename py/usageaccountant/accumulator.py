@@ -1,10 +1,16 @@
+import time
+from collections import defaultdict
 from enum import Enum
+from typing import MutableMapping, Optional, Tuple
 
 
 class UsageType(Enum):
     SECONDS = "seconds"
     BYTES = "bytes"
     BYTES_SEC = "bytes_sec"
+
+
+UsageKey = Tuple[int, str, str, UsageType]
 
 
 class UsageAccumulator:
@@ -39,8 +45,9 @@ class UsageAccumulator:
         `granularity_sec` defines how often the accumulator will be
         flushed.
         """
-
-        pass
+        self.__first_timestamp: Optional[float] = None
+        self.__usage_batch: MutableMapping[UsageKey, float] = defaultdict()
+        self.__granularity_sec = granularity_sec
 
     def record(
         self,
@@ -63,9 +70,23 @@ class UsageAccumulator:
         `amount`  is the amount of resource used.
         `usage_type` is the unit of measure for `amount`.
         """
-        pass
+        now = time.time()
+        if self.__first_timestamp is None:
+            self.__first_timestamp = now
 
-    def flush(self) -> None:
+        self.__usage_batch[
+            (
+                int(now / self.__granularity_sec),
+                resource_id,
+                app_feature,
+                usage_type,
+            )
+        ] += amount
+
+        if now - self.__first_timestamp > self.__granularity_sec:
+            self.flush(synchronous=False)
+
+    def flush(self, synchronous: bool = True) -> None:
         """
         This method is blocking and it forces the api to flush
         data accumulated to Kafka.
