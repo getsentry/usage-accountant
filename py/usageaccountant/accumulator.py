@@ -30,7 +30,8 @@ class UsageUnit(Enum):
 UsageKey = Tuple[int, str, str, UsageUnit]
 
 DEFAULT_TOPIC_NAME = "resources_usage_log"
-DEFAULT_QUEUE_SIZE = 10000
+DEFAULT_QUEUE_SIZE = 9500
+CLOSE_TIMEOUT_SEC = 60
 
 logger = logging.getLogger("usageaccountant")
 
@@ -60,7 +61,7 @@ class UsageAccumulator:
 
     def __init__(
         self,
-        granularity_sec: int,
+        granularity_sec: int = 60,
         topic_name: str = DEFAULT_TOPIC_NAME,
         queue_size: int = DEFAULT_QUEUE_SIZE,
         bootstrap_servers: Optional[Sequence[str]] = None,
@@ -153,7 +154,7 @@ class UsageAccumulator:
                 logger.error(
                     "Buffer overflow in the usage accountant. Max length"
                 )
-                self.flush(synchronous=False)
+                self.flush()
             return
 
         if self.__first_timestamp is None:
@@ -165,9 +166,9 @@ class UsageAccumulator:
             self.__usage_batch[key] += amount
 
         if now - self.__first_timestamp > self.__granularity_sec:
-            self.flush(synchronous=False)
+            self.flush()
 
-    def flush(self, synchronous: bool = True) -> None:
+    def flush(self) -> None:
         """
         This method is blocking and it forces the api to flush
         data accumulated to Kafka.
@@ -175,10 +176,11 @@ class UsageAccumulator:
         This method is supposed to be used when we are shutting
         down the program that was accumulating data.
         """
-        self.__prune_queue()
+        while self.__futures and self.__futures[0].done():
+            self.__futures.popleft()
 
         for key, amount in self.__usage_batch.items():
-            if len(self.__futures) == self.__queue_size:
+            if len(self.__futures) >= self.__queue_size:
                 logger.error(
                     (
                         "Too many Kafka messages pending callback. Clearing "
@@ -205,6 +207,6 @@ class UsageAccumulator:
 
         self.__usage_batch.clear()
 
-    def __prune_queue(self) -> None:
-        while self.__futures and self.__futures[0].done():
-            self.__futures.popleft()
+    def close(self) -> None:
+        result = self.__producer.close()
+        result.result(timeout=CLOSE_TIMEOUT_SEC)
