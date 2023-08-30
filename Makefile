@@ -11,7 +11,7 @@ all: venv
 .PHONY: venv-python
 venv-python:
 	virtualenv -ppython3 $(VENV_PATH)
-	pip install -r python/requirements.txt
+	pip install -r py/requirements.txt
 
 
 .PHONY: test-python
