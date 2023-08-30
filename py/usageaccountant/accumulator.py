@@ -134,6 +134,13 @@ class UsageAccumulator:
         `usage_type` is the unit of measure for `amount`.
         """
         now = time.time()
+        if (
+            self.__first_timestamp is not None
+            and now - self.__first_timestamp >= self.__granularity_sec
+        ):
+            self.flush()
+            self.__first_timestamp = now
+
         key = (
             floor(now / self.__granularity_sec) * 10,
             resource_id,
@@ -155,6 +162,7 @@ class UsageAccumulator:
                     "Buffer overflow in the usage accountant. Max length"
                 )
                 self.flush()
+                print("Clear")
             return
 
         if self.__first_timestamp is None:
@@ -165,9 +173,6 @@ class UsageAccumulator:
         else:
             self.__usage_batch[key] += amount
 
-        if now - self.__first_timestamp > self.__granularity_sec:
-            self.flush()
-
     def flush(self) -> None:
         """
         This method is blocking and it forces the api to flush
@@ -177,6 +182,10 @@ class UsageAccumulator:
         down the program that was accumulating data.
         """
         while self.__futures and self.__futures[0].done():
+            try:
+                self.__futures[0].result()
+            except Exception as e:
+                logger.exception(e)
             self.__futures.popleft()
 
         for key, amount in self.__usage_batch.items():
@@ -209,4 +218,7 @@ class UsageAccumulator:
 
     def close(self) -> None:
         result = self.__producer.close()
-        result.result(timeout=CLOSE_TIMEOUT_SEC)
+        try:
+            result.result(timeout=CLOSE_TIMEOUT_SEC)
+        except Exception as e:
+            logger.exception(e)
