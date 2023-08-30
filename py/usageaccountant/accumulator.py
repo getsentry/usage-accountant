@@ -1,3 +1,4 @@
+import logging
 import time
 from collections import defaultdict, deque
 from concurrent.futures import Future
@@ -28,6 +29,8 @@ UsageKey = Tuple[int, str, str, UsageUnit]
 
 DEFAULT_TOPIC_NAME = "resources_usage_log"
 DEFAULT_QUEUE_SIZE = 10000
+
+logger = logging.getLogger("usageaccountant")
 
 
 class UsageAccumulator:
@@ -104,6 +107,8 @@ class UsageAccumulator:
         self.__queue_size = queue_size
         self.__futures: Deque[Future[BrokerValue[KafkaPayload]]] = deque()
 
+        self.__last_log: Optional[float] = None
+
     def record(
         self,
         resource_id: str,
@@ -126,17 +131,33 @@ class UsageAccumulator:
         `usage_type` is the unit of measure for `amount`.
         """
         now = time.time()
+        key = (
+            int(now / self.__granularity_sec),
+            resource_id,
+            app_feature,
+            usage_type,
+        )
+
+        if (
+            key not in self.__usage_batch
+            and len(self.__usage_batch) >= self.__queue_size
+        ):
+            # Avoid logging too often. Logging very often can become a major
+            # overhead for the call site. This function can be called in tight
+            # loops or in very high throughput scenarios. We should err on the
+            # side of safety.
+            if not self.__last_log or self.__last_log < now - 1:
+                self.__last_log = now
+                logger.error(
+                    "Buffer overflow in the usage accountant. Max length"
+                )
+                self.flush(synchronous=False)
+            return
+
         if self.__first_timestamp is None:
             self.__first_timestamp = now
 
-        self.__usage_batch[
-            (
-                int(now / self.__granularity_sec),
-                resource_id,
-                app_feature,
-                usage_type,
-            )
-        ] += amount
+        self.__usage_batch[key] += amount
 
         if now - self.__first_timestamp > self.__granularity_sec:
             self.flush(synchronous=False)
@@ -153,7 +174,12 @@ class UsageAccumulator:
 
         for key, amount in self.__usage_batch.items():
             if len(self.__futures) == self.__queue_size:
-                # TODO: Log here
+                logger.error(
+                    (
+                        "Too many Kafka messages pending callback. Clearing "
+                        "the buffer. Usage data was dropped."
+                    )
+                )
                 break
 
             message = {
@@ -171,6 +197,8 @@ class UsageAccumulator:
                 ),
             )
             self.__futures.append(result)
+
+        self.__usage_batch.clear()
 
     def __prune_queue(self) -> None:
         while self.__futures and self.__futures[0].done():
