@@ -44,3 +44,5 @@ def test_broker() -> None:
     assert formatted["app_feature"] == "spans"
     assert formatted["usage_unit"] == UsageUnit.BYTES.value
     assert formatted["amount"] == 20.0
+
+    assert broker.consume(Partition(topic, 0), 1) is None
