@@ -1,9 +1,10 @@
 import logging
 import time
-from collections import defaultdict, deque
+from collections import deque
 from concurrent.futures import Future
 from enum import Enum
 from json import dumps
+from math import floor
 from typing import (
     Any,
     Deque,
@@ -14,6 +15,7 @@ from typing import (
     Tuple,
 )
 
+from arroyo.backends.abstract import Producer
 from arroyo.backends.kafka.configuration import build_kafka_configuration
 from arroyo.backends.kafka.consumer import KafkaPayload, KafkaProducer
 from arroyo.types import BrokerValue, Topic
@@ -63,7 +65,7 @@ class UsageAccumulator:
         queue_size: int = DEFAULT_QUEUE_SIZE,
         bootstrap_servers: Optional[Sequence[str]] = None,
         default_kafka_config: Optional[Mapping[str, Any]] = None,
-        producer: Optional[KafkaProducer] = None,
+        producer: Optional[Producer[KafkaPayload]] = None,
     ) -> None:
         """
         Initializes the accumulator. Instances should be kept around
@@ -74,7 +76,7 @@ class UsageAccumulator:
         flushed.
         """
         self.__first_timestamp: Optional[float] = None
-        self.__usage_batch: MutableMapping[UsageKey, float] = defaultdict()
+        self.__usage_batch: MutableMapping[UsageKey, float] = {}
         self.__granularity_sec = granularity_sec
 
         self.__topic = Topic(topic_name)
@@ -86,7 +88,7 @@ class UsageAccumulator:
                 "If producer is provided, initialization "
                 "parameters cannot be provided"
             )
-            self.__producer: KafkaProducer = producer
+            self.__producer: Producer[KafkaPayload] = producer
 
         else:
             assert (
@@ -132,7 +134,7 @@ class UsageAccumulator:
         """
         now = time.time()
         key = (
-            int(now / self.__granularity_sec),
+            floor(now / self.__granularity_sec) * 10,
             resource_id,
             app_feature,
             usage_type,
@@ -157,7 +159,10 @@ class UsageAccumulator:
         if self.__first_timestamp is None:
             self.__first_timestamp = now
 
-        self.__usage_batch[key] += amount
+        if key not in self.__usage_batch:
+            self.__usage_batch[key] = amount
+        else:
+            self.__usage_batch[key] += amount
 
         if now - self.__first_timestamp > self.__granularity_sec:
             self.flush(synchronous=False)
