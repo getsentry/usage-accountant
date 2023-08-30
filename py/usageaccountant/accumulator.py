@@ -10,9 +10,9 @@ from typing import (
     Deque,
     Mapping,
     MutableMapping,
+    NamedTuple,
     Optional,
     Sequence,
-    Tuple,
 )
 
 from arroyo.backends.abstract import Producer
@@ -22,18 +22,28 @@ from arroyo.types import BrokerValue, Topic
 
 
 class UsageUnit(Enum):
-    SECONDS = "seconds"
+    MILLISECONDS = "milliseconds"
     BYTES = "bytes"
-    BYTES_SEC = "bytes_sec"
+    MILLISECONDS_SEC = "milliseconds_sec"
 
 
-UsageKey = Tuple[int, str, str, UsageUnit]
+class UsageKey(NamedTuple):
+    timestamp: int
+    resource_id: str
+    app_feature: str
+    unit: UsageUnit
+
 
 DEFAULT_TOPIC_NAME = "resources_usage_log"
 DEFAULT_QUEUE_SIZE = 9500
 CLOSE_TIMEOUT_SEC = 60
 
 logger = logging.getLogger("usageaccountant")
+
+
+class KafkaConfig(NamedTuple):
+    bootstrap_servers: Sequence[str]
+    config_params: Mapping[str, Any]
 
 
 class UsageAccumulator:
@@ -64,8 +74,7 @@ class UsageAccumulator:
         granularity_sec: int = 60,
         topic_name: str = DEFAULT_TOPIC_NAME,
         queue_size: int = DEFAULT_QUEUE_SIZE,
-        bootstrap_servers: Optional[Sequence[str]] = None,
-        default_kafka_config: Optional[Mapping[str, Any]] = None,
+        kafka_config: Optional[KafkaConfig] = None,
         producer: Optional[Producer[KafkaPayload]] = None,
     ) -> None:
         """
@@ -77,33 +86,28 @@ class UsageAccumulator:
         flushed.
         """
         self.__first_timestamp: Optional[float] = None
-        self.__usage_batch: MutableMapping[UsageKey, float] = {}
+        self.__usage_batch: MutableMapping[UsageKey, int] = {}
         self.__granularity_sec = granularity_sec
 
         self.__topic = Topic(topic_name)
 
         if producer is not None:
-            assert (
-                bootstrap_servers is None and default_kafka_config is None
-            ), (
+            assert kafka_config is None, (
                 "If producer is provided, initialization "
                 "parameters cannot be provided"
             )
             self.__producer: Producer[KafkaPayload] = producer
 
         else:
-            assert (
-                bootstrap_servers is not None
-                and default_kafka_config is not None
-            ), (
+            assert kafka_config is not None, (
                 "If no producer is provided, initialization parameters "
                 "have to be provided"
             )
 
             self.__producer = KafkaProducer(
                 build_kafka_configuration(
-                    default_config=default_kafka_config,
-                    bootstrap_servers=bootstrap_servers,
+                    default_config=kafka_config.config_params,
+                    bootstrap_servers=kafka_config.bootstrap_servers,
                 )
             )
 
@@ -116,7 +120,7 @@ class UsageAccumulator:
         self,
         resource_id: str,
         app_feature: str,
-        amount: float,
+        amount: int,
         usage_type: UsageUnit,
     ) -> None:
         """
@@ -141,7 +145,7 @@ class UsageAccumulator:
             self.flush()
             self.__first_timestamp = now
 
-        key = (
+        key = UsageKey(
             floor(now / self.__granularity_sec) * 10,
             resource_id,
             app_feature,
@@ -199,10 +203,10 @@ class UsageAccumulator:
                 break
 
             message = {
-                "timestamp": key[0],
-                "shared_resource_id": key[1],
-                "app_feature": key[2],
-                "usage_unit": key[3].value,
+                "timestamp": key.timestamp,
+                "shared_resource_id": key.resource_id,
+                "app_feature": key.app_feature,
+                "usage_unit": key.unit.value,
                 "amount": amount,
             }
 

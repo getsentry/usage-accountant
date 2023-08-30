@@ -26,7 +26,7 @@ def assert_msg(
     timestamp: int,
     resource_id: str,
     app_feature: str,
-    amount: float,
+    amount: int,
     usage_type: UsageUnit,
 ) -> None:
     assert message is not None
@@ -55,26 +55,26 @@ def test_two_buckets(
     accumulator.record(
         resource_id="metrics_consumer",
         app_feature="spans",
-        amount=10.0,
+        amount=10,
         usage_type=UsageUnit.BYTES,
     )
     accumulator.record(
         resource_id="metrics_consumer",
         app_feature="transactions",
-        amount=10.0,
+        amount=10,
         usage_type=UsageUnit.BYTES,
     )
     mock_time.return_value = 1594839920.1
     accumulator.record(
         resource_id="metrics_consumer",
         app_feature="spans",
-        amount=10.0,
+        amount=10,
         usage_type=UsageUnit.BYTES,
     )
     accumulator.record(
         resource_id="metrics_consumer",
         app_feature="spans",
-        amount=10.0,
+        amount=10,
         usage_type=UsageUnit.BYTES,
     )
 
@@ -83,7 +83,7 @@ def test_two_buckets(
     topic = Topic("test_resource_usage")
     msg1 = broker.consume(Partition(topic, 0), 0)
     assert_msg(
-        msg1, 1594839910, "metrics_consumer", "spans", 10.0, UsageUnit.BYTES
+        msg1, 1594839910, "metrics_consumer", "spans", 10, UsageUnit.BYTES
     )
     msg2 = broker.consume(Partition(topic, 0), 1)
     assert_msg(
@@ -91,12 +91,12 @@ def test_two_buckets(
         1594839910,
         "metrics_consumer",
         "transactions",
-        10.0,
+        10,
         UsageUnit.BYTES,
     )
     msg3 = broker.consume(Partition(topic, 0), 2)
     assert_msg(
-        msg3, 1594839920, "metrics_consumer", "spans", 20.0, UsageUnit.BYTES
+        msg3, 1594839920, "metrics_consumer", "spans", 20, UsageUnit.BYTES
     )
     assert broker.consume(Partition(topic, 0), 3) is None
 
@@ -115,7 +115,7 @@ def test_buffer_overflow(
         accumulator.record(
             resource_id="metrics_consumer",
             app_feature=f"spans_{i}",
-            amount=10.0,
+            amount=10,
             usage_type=UsageUnit.BYTES,
         )
     accumulator.flush()
