@@ -1,1 +1,1 @@
-sentry-arroyo==2.14.0
+sentry-arroyo==2.14.5
