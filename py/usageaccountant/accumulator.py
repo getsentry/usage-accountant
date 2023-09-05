@@ -34,7 +34,7 @@ class UsageKey(NamedTuple):
     unit: UsageUnit
 
 
-DEFAULT_TOPIC_NAME = "resources_usage_log"
+DEFAULT_TOPIC_NAME = "shared-resources-usage"
 DEFAULT_QUEUE_SIZE = 9500
 CLOSE_TIMEOUT_SEC = 60
 
