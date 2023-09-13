@@ -1,4 +1,11 @@
 # Changelog and versioning
+## 0.0.2
+
+### Various fixes & improvements
+
+- Fix bump version script (#14) by @fpacifici
+- Fix missing dependency on arroyo (#13) by @fpacifici
+
 ## 0.0.1
 
 ### Various fixes & improvements
