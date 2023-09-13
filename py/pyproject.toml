@@ -12,6 +12,9 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+    'sentry-arroyo==2.14.5'
+]
 
 [tool.black]
 line-length = 79
