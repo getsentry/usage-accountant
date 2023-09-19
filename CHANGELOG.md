@@ -1,4 +1,11 @@
 # Changelog and versioning
+## 0.0.4
+
+### Various fixes & improvements
+
+- fixed (#15) by @rahul-kumar-saini
+- update (#15) by @rahul-kumar-saini
+
 ## 0.0.3
 
 ### Various fixes & improvements
