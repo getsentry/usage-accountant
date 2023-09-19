@@ -1,4 +1,12 @@
 # Changelog and versioning
+## 0.0.6
+
+### Various fixes & improvements
+
+- Fix the dependency in the right place (#16) by @fpacifici
+- fixed (#15) by @rahul-kumar-saini
+- update (#15) by @rahul-kumar-saini
+
 ## 0.0.3
 
 ### Various fixes & improvements
