@@ -1,4 +1,10 @@
 # Changelog and versioning
+## 0.0.7
+
+### Various fixes & improvements
+
+- add py.typed (#18) by @rahul-kumar-saini
+
 ## 0.0.6
 
 ### Various fixes & improvements
