@@ -20,7 +20,7 @@ dependencies = [
 "usageaccountant" = ["*.py", "py.typed"]
 
 [tool.setuptools.packages.find]
-where = ["py"]
+where = ["usageaccountant"]
 
 [tool.black]
 line-length = 79
