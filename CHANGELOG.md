@@ -1,4 +1,10 @@
 # Changelog and versioning
+## 0.0.9
+
+### Various fixes & improvements
+
+- Add py.typed (#20) by @fpacifici
+
 ## 0.0.8
 
 ### Various fixes & improvements
