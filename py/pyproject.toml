@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [tool.setuptools.package-data]
-"sentry-usage-accountant" = ["py.typed"]
+"usageaccountant" = ["py.typed", "*.py"]
 
 [tool.setuptools.packages.find]
 where = ["usageaccountant"]
