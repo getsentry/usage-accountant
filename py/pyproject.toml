@@ -16,12 +16,6 @@ dependencies = [
     'sentry-arroyo>=2.14.5'
 ]
 
-[tool.setuptools.package-data]
-usageaccountant = ["py.typed"]
-
-[tool.setuptools.packages.find]
-where = ["usageaccountant"]
-
 [tool.black]
 line-length = 79
 target-version = ['py38']
