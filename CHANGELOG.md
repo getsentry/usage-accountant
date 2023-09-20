@@ -1,4 +1,10 @@
 # Changelog and versioning
+## 0.0.8
+
+### Various fixes & improvements
+
+- Revert "feat(typing): Python library stubs (py.typed)" (#19) by @fpacifici
+
 ## 0.0.7
 
 ### Various fixes & improvements
