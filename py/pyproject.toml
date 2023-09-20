@@ -2,6 +2,13 @@
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+
+[tool.setuptools.package-data]
+"usageaccountant" = ["py.typed", "accumulator.py"]
+
+[tool.setuptools.packages.find]
+where = ["usageaccountant"]
+
 [project]
 name = "sentry-usage-accountant"
 version = "0.0.7"
@@ -15,6 +22,7 @@ classifiers = [
 dependencies = [
     'sentry-arroyo>=2.14.5'
 ]
+
 
 [tool.black]
 line-length = 79
