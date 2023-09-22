@@ -146,7 +146,7 @@ class UsageAccumulator:
             self.__first_timestamp = now
 
         key = UsageKey(
-            floor(now / self.__granularity_sec) * 10,
+            floor(now / self.__granularity_sec) * self.__granularity_sec,
             resource_id,
             app_feature,
             usage_type,

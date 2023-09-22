@@ -48,7 +48,7 @@ def test_two_buckets(
 ) -> None:
     producer = broker.get_producer()
     accumulator = UsageAccumulator(
-        10, topic_name="test_resource_usage", producer=producer
+        60, topic_name="test_resource_usage", producer=producer
     )
 
     mock_time.return_value = 1594839910.1
@@ -64,7 +64,7 @@ def test_two_buckets(
         amount=10,
         usage_type=UsageUnit.BYTES,
     )
-    mock_time.return_value = 1594839920.1
+    mock_time.return_value = 1594839961.1
     accumulator.record(
         resource_id="metrics_consumer",
         app_feature="spans",
@@ -83,12 +83,12 @@ def test_two_buckets(
     topic = Topic("test_resource_usage")
     msg1 = broker.consume(Partition(topic, 0), 0)
     assert_msg(
-        msg1, 1594839910, "metrics_consumer", "spans", 10, UsageUnit.BYTES
+        msg1, 1594839900, "metrics_consumer", "spans", 10, UsageUnit.BYTES
     )
     msg2 = broker.consume(Partition(topic, 0), 1)
     assert_msg(
         msg2,
-        1594839910,
+        1594839900,
         "metrics_consumer",
         "transactions",
         10,
@@ -96,7 +96,7 @@ def test_two_buckets(
     )
     msg3 = broker.consume(Partition(topic, 0), 2)
     assert_msg(
-        msg3, 1594839920, "metrics_consumer", "spans", 20, UsageUnit.BYTES
+        msg3, 1594839960, "metrics_consumer", "spans", 20, UsageUnit.BYTES
     )
     assert broker.consume(Partition(topic, 0), 3) is None
 
