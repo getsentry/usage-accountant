@@ -1,4 +1,10 @@
 # Changelog and versioning
+## 0.0.10
+
+### Various fixes & improvements
+
+- Fix granularity rounding (#21) by @fpacifici
+
 ## 0.0.9
 
 ### Various fixes & improvements

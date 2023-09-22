@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sentry-usage-accountant"
-version = "0.0.9"
+version = "0.0.10"
 description = "A library to account for shared resource usage"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -38,7 +38,7 @@ skip_covered = false
 exclude_lines = ["@pytest.mark.slow_integration"]
 
 [tool.pytest.ini_options]
-minversion = "0.0.9"
+minversion = "0.0.10"
 addopts = "--durations=3 -vv --doctest-modules"
 testpaths = ["."]
 norecursedirs = [
