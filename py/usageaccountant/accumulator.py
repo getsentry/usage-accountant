@@ -116,6 +116,8 @@ class UsageAccumulator:
 
         self.__last_log: Optional[float] = None
 
+        self.__is_closed: bool = False
+
     def record(
         self,
         resource_id: str,
@@ -137,6 +139,10 @@ class UsageAccumulator:
         `amount`  is the amount of resource used.
         `usage_type` is the unit of measure for `amount`.
         """
+
+        if self.__is_closed:
+            return
+
         now = time.time()
         if (
             self.__first_timestamp is not None
@@ -185,6 +191,10 @@ class UsageAccumulator:
         This method is supposed to be used when we are shutting
         down the program that was accumulating data.
         """
+
+        if self.__is_closed:
+            return
+
         while self.__futures and self.__futures[0].done():
             try:
                 self.__futures[0].result()
@@ -221,7 +231,10 @@ class UsageAccumulator:
         self.__usage_batch.clear()
 
     def close(self) -> None:
+        if self.__is_closed:
+            return
         result = self.__producer.close()
+        self.__is_closed = True
         try:
             result.result(timeout=CLOSE_TIMEOUT_SEC)
         except Exception as e:

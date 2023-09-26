@@ -127,3 +127,34 @@ def test_buffer_overflow(
     # the accumulator. It is not produced for buffer overflow.
     msg2 = broker.consume(Partition(topic, 0), 9500)
     assert msg2 is None
+
+
+def test_close_accumulator(broker: LocalBroker[KafkaPayload]) -> None:
+    producer = broker.get_producer()
+    accumulator = UsageAccumulator(
+        10, topic_name="test_resource_usage", producer=producer
+    )
+
+    accumulator.record(
+        resource_id="metrics_consumer",
+        app_feature="spans_0",
+        amount=10,
+        usage_type=UsageUnit.BYTES,
+    )
+    accumulator.flush()
+    accumulator.close()
+
+    topic = Topic("test_resource_usage")
+    msg = broker.consume(Partition(topic, 0), 0)
+    assert msg is not None
+
+    # closed accumulator should not do anything at all
+    accumulator.record(
+        resource_id="metrics_consumer",
+        app_feature="spans_1",
+        amount=10,
+        usage_type=UsageUnit.BYTES,
+    )
+    accumulator.flush()
+
+    assert broker.consume(Partition(topic, 0), 1) is None
