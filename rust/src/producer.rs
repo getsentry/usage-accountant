@@ -1,5 +1,4 @@
 /**
- * - create config structure
  * - create trait
  * - create mock
  * - create context
@@ -8,6 +7,10 @@
 
 use rdkafka::config::ClientConfig as RdKafkaConfig;
 use std::collections::HashMap;
+use rdkafka::producer::{DeliveryResult, ProducerContext};
+use rdkafka::{ClientContext, Message};
+use rdkafka::producer::{BaseRecord, ThreadedProducer};
+use thiserror::Error;
 
 #[derive(Debug, Clone)]
 pub struct KafkaConfig {
@@ -71,9 +74,74 @@ where
     config
 }
 
+pub struct CaptureErrorContext;
+
+impl ClientContext for CaptureErrorContext {}
+
+impl ProducerContext for CaptureErrorContext {
+    type DeliveryOpaque = ();
+
+    fn delivery(&self, result: &DeliveryResult, _delivery_opaque: Self::DeliveryOpaque) {
+        // TODO: Do something useful here
+    }
+}
+
+/// Kafka producer errors.
+#[derive(Error, Debug)]
+pub enum ClientError {
+    /// Failed to send a kafka message.
+    #[error("failed to send kafka message")]
+    SendFailed(#[source] rdkafka::error::KafkaError),
+
+    /// Failed to create a kafka producer because of the invalid configuration.
+    #[error("failed to create kafka producer: invalid kafka config")]
+    InvalidConfig(#[source] rdkafka::error::KafkaError),
+}
+
+pub trait Producer {
+    fn send(&mut self, topic_name: String, payload: &[u8]) -> Result<(), ClientError>;
+}
+
+pub struct DummyProducer {
+    messages: Vec<(String, Vec<u8>)>
+}
+
+impl Producer for DummyProducer {
+    fn send(&mut self, topic_name: String, payload: &[u8]) -> Result<(), ClientError> {
+        self.messages.push((topic_name.clone(), payload.to_vec()));
+        Ok(())
+    }
+}
+
+pub struct KafkaProducer {
+    producer: ThreadedProducer<CaptureErrorContext>,
+}
+
+impl KafkaProducer {
+    pub fn new(config: KafkaConfig) -> KafkaProducer{
+        let producer_config: RdKafkaConfig = config.into();
+        KafkaProducer {
+            producer: producer_config
+                .create_with_context(CaptureErrorContext)
+                .expect("Producer creation error")
+        }
+    }
+}
+
+impl Producer for KafkaProducer {
+    fn send(&mut self, topic_name: String, payload: &[u8]) -> Result<(), ClientError> {
+        let record: BaseRecord<'_, [u8], [u8]> = BaseRecord::to(topic_name.as_str()).payload(payload);
+        self.producer.send(record).map_err(|(error, _message)| {
+            ClientError::SendFailed(error)
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::KafkaConfig;
+    use super::DummyProducer;
+    use super::Producer;
     use rdkafka::config::ClientConfig as RdKafkaConfig;
     use std::collections::HashMap;
 
@@ -92,5 +160,14 @@ mod tests {
             rdkafka_config.get("queued.max.messages.kbytes"),
             Some("1000000")
         );
+    }
+
+    #[test]
+    fn test_dummy_producer() {
+        let mut producer = DummyProducer{messages: Vec::new()};
+        let res = producer.send("topic".to_string(), "message".as_bytes());
+        assert!(res.is_ok());
+
+        assert_eq!(producer.messages.len(), 1);
     }
 }
