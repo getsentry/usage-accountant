@@ -472,6 +472,8 @@ dependencies = [
  "chrono",
  "clap",
  "rdkafka",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

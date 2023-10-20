@@ -9,6 +9,8 @@ edition = "2021"
 chrono = "0.4.31"
 rdkafka = "0.29.0"
 thiserror = "1.0"
+serde = { version = "1.0.159", features = ["derive"] }
+serde_json = "1.0.93"
 
 [dev-dependencies]
 clap = { version = "4.4.6", features = ["derive"] }

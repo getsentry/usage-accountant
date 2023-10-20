@@ -1,8 +1,4 @@
 /**
- * - create trait
- * - create mock
- * - create context
- * - implement the threading one
  */
 
 use rdkafka::config::ClientConfig as RdKafkaConfig;
