@@ -60,9 +60,9 @@ impl UsageAccumulator {
         }
 
         let key = UsageKey {
-            quantized_timestamp: quantized_timestamp,
-            resource_id: resource_id,
-            app_feature: app_feature,
+            quantized_timestamp,
+            resource_id,
+            app_feature,
             unit: usage_unit,
         };
 
@@ -89,7 +89,7 @@ impl UsageAccumulator {
         self.first_timestamp = None;
         let mut ret_val: HashMap<UsageKey, u64> = HashMap::new();
         mem::swap(&mut self.usage_batch, &mut ret_val);
-        return ret_val;
+        ret_val
     }
 }
 

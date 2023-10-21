@@ -70,7 +70,7 @@ impl<'a> UsageAccountant<'a> {
 
             self.producer.send(
                 self.topic.clone(),
-                message.as_str().unwrap().as_bytes(),
+                message.to_string().as_bytes(),
             )?;
         }
         Ok(())
@@ -80,40 +80,51 @@ impl<'a> UsageAccountant<'a> {
 
 #[cfg(test)]
 mod tests {
-    /*use rdkafka::client::DefaultClientContext;
-    use rdkafka::config::ClientConfig;
-    use rdkafka::consumer::{Consumer, StreamConsumer};
-    use rdkafka::message::Message;
-    use rdkafka::mocking::MockCluster;
-    use rdkafka::producer::{ThreadedProducer, NoCustomPartitioner,
-        DefaultProducerContext, BaseRecord};
+    use super::{UsageAccountant};
+    use super::super::accumulator::{UsageUnit};
+    use super::super::producer::{DummyProducer};
+    use std::cell::RefCell;
 
     #[test]
-    fn test_base() {
-        const TOPIC: &str = "test_topic";
-        let mock_cluster = MockCluster::new(3).unwrap();
-        mock_cluster
-            .create_topic(TOPIC, 32, 3)
-            .expect("Failed to create topic");
+    fn test_empty_batch() {
+        let mut messages = RefCell::new(Vec::new());
+        let producer = DummyProducer{messages};
+        let mut accountant = UsageAccountant::new_with_producer(
+            Box::new(producer),
+            None,
+            None,
+        );
 
-        let producer: ThreadedProducer<DefaultProducerContext> = ClientConfig::new()
-            .set("bootstrap.servers", mock_cluster.bootstrap_servers())
-            .create()
-            .expect("Producer creation error");
+        let res = accountant.flush();
+        assert!(res.is_ok());
+        assert_eq!(producer.messages.borrow().len(), 0);
+    }
 
-        let mut i = 0_usize;
-        loop {
-            producer
-                .send(
-                    BaseRecord::to(TOPIC)
-                        .key(&i.to_string())
-                        .payload("dummy")
-                ).unwrap();
-            i += 1;
-            if i > 10 {
-                break;
-            }
-        }
+    #[test]
+    fn test_three_messages() {
+        let mut messages = RefCell::new(Vec::new());
+        let producer = DummyProducer{
+            messages,
+        };
+        let mut accountant = UsageAccountant::new_with_producer(
+            Box::new(producer),
+            None,
+            None,
+        );
 
-    }*/
+        let res1 = accountant.record(
+            "resource_1".to_string(),
+            "transactions".to_string(),
+            100, UsageUnit::Bytes);
+        assert!(res1.is_ok());
+        let res2 = accountant.record(
+            "resource_1".to_string(),
+            "spans".to_string(),
+            200, UsageUnit::Bytes);
+        assert!(res2.is_ok());
+
+        let res = accountant.flush();
+        assert!(res.is_ok());
+        assert_eq!(messages.borrow().len(), 2);
+    }
 }

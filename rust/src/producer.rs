@@ -7,6 +7,7 @@ use rdkafka::producer::{DeliveryResult, ProducerContext};
 use rdkafka::{ClientContext, Message};
 use rdkafka::producer::{BaseRecord, ThreadedProducer};
 use thiserror::Error;
+use std::cell::RefCell;
 
 #[derive(Debug, Clone)]
 pub struct KafkaConfig {
@@ -99,12 +100,12 @@ pub trait Producer {
 }
 
 pub struct DummyProducer {
-    messages: Vec<(String, Vec<u8>)>
+    pub messages: RefCell<Vec<(String, Vec<u8>)>>
 }
 
 impl Producer for DummyProducer {
     fn send(&mut self, topic_name: String, payload: &[u8]) -> Result<(), ClientError> {
-        self.messages.push((topic_name.clone(), payload.to_vec()));
+        self.messages.borrow_mut().push((topic_name.clone(), payload.to_vec()));
         Ok(())
     }
 }
@@ -140,6 +141,7 @@ mod tests {
     use super::Producer;
     use rdkafka::config::ClientConfig as RdKafkaConfig;
     use std::collections::HashMap;
+    use std::cell::RefCell;
 
     #[test]
     fn test_build_producer_configuration() {
@@ -160,10 +162,13 @@ mod tests {
 
     #[test]
     fn test_dummy_producer() {
-        let mut producer = DummyProducer{messages: Vec::new()};
+        let mut messages = RefCell::new(Vec::new());
+        let mut producer = DummyProducer{
+            messages,
+        };
         let res = producer.send("topic".to_string(), "message".as_bytes());
         assert!(res.is_ok());
 
-        assert_eq!(producer.messages.len(), 1);
+        assert_eq!(producer.messages.borrow().len(), 1);
     }
 }
