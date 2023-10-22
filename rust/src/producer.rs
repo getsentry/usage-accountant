@@ -4,7 +4,7 @@
 use rdkafka::config::ClientConfig as RdKafkaConfig;
 use std::collections::HashMap;
 use rdkafka::producer::{DeliveryResult, ProducerContext};
-use rdkafka::{ClientContext, Message};
+use rdkafka::ClientContext;
 use rdkafka::producer::{BaseRecord, ThreadedProducer};
 use thiserror::Error;
 use std::cell::RefCell;
@@ -60,13 +60,10 @@ fn apply_override_params<V>(
 where
     V: Into<String>,
 {
-    match override_params {
-        Some(params) => {
-            for (param, value) in params {
-                config.config_map.insert(param, value.into());
-            }
+    if let Some(params) = override_params {
+        for (param, value) in params {
+            config.config_map.insert(param, value.into());
         }
-        None => {}
     }
     config
 }
@@ -78,7 +75,7 @@ impl ClientContext for CaptureErrorContext {}
 impl ProducerContext for CaptureErrorContext {
     type DeliveryOpaque = ();
 
-    fn delivery(&self, result: &DeliveryResult, _delivery_opaque: Self::DeliveryOpaque) {
+    fn delivery(&self, _: &DeliveryResult, _delivery_opaque: Self::DeliveryOpaque) {
         // TODO: Do something useful here
     }
 }
@@ -99,11 +96,11 @@ pub trait Producer {
     fn send(&mut self, topic_name: String, payload: &[u8]) -> Result<(), ClientError>;
 }
 
-pub struct DummyProducer {
-    pub messages: RefCell<Vec<(String, Vec<u8>)>>
+pub struct DummyProducer<'a> {
+    pub messages: &'a RefCell<Vec<(String, Vec<u8>)>>
 }
 
-impl Producer for DummyProducer {
+impl<'a> Producer for DummyProducer<'a> {
     fn send(&mut self, topic_name: String, payload: &[u8]) -> Result<(), ClientError> {
         self.messages.borrow_mut().push((topic_name.clone(), payload.to_vec()));
         Ok(())
@@ -162,9 +159,9 @@ mod tests {
 
     #[test]
     fn test_dummy_producer() {
-        let mut messages = RefCell::new(Vec::new());
+        let messages = RefCell::new(Vec::new());
         let mut producer = DummyProducer{
-            messages,
+            messages: &messages,
         };
         let res = producer.send("topic".to_string(), "message".as_bytes());
         assert!(res.is_ok());

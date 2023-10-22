@@ -1,6 +1,6 @@
 use crate::accumulator::{UsageUnit, UsageAccumulator};
 use crate::producer::{ClientError, KafkaConfig, Producer, KafkaProducer};
-use chrono::{Local};
+use chrono::Local;
 use serde_json::json;
 
 static DEFAULT_TOPIC_NAME: &str = "shared-resources-usage";
@@ -80,15 +80,17 @@ impl<'a> UsageAccountant<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{UsageAccountant};
-    use super::super::accumulator::{UsageUnit};
-    use super::super::producer::{DummyProducer};
+    use super::UsageAccountant;
+    use super::super::accumulator::UsageUnit;
+    use super::super::producer::DummyProducer;
     use std::cell::RefCell;
+    use serde_json::Value;
+    use std::str::from_utf8;
 
     #[test]
     fn test_empty_batch() {
-        let mut messages = RefCell::new(Vec::new());
-        let producer = DummyProducer{messages};
+        let messages = RefCell::new(Vec::new());
+        let producer = DummyProducer{messages: &messages};
         let mut accountant = UsageAccountant::new_with_producer(
             Box::new(producer),
             None,
@@ -97,14 +99,14 @@ mod tests {
 
         let res = accountant.flush();
         assert!(res.is_ok());
-        assert_eq!(producer.messages.borrow().len(), 0);
+        assert_eq!(messages.borrow().len(), 0);
     }
 
     #[test]
     fn test_three_messages() {
-        let mut messages = RefCell::new(Vec::new());
+        let messages = RefCell::new(Vec::new());
         let producer = DummyProducer{
-            messages,
+            messages: &messages,
         };
         let mut accountant = UsageAccountant::new_with_producer(
             Box::new(producer),
@@ -125,6 +127,28 @@ mod tests {
 
         let res = accountant.flush();
         assert!(res.is_ok());
+        let messages_vec = messages.borrow();
+        assert_eq!(messages_vec.len(), 2);
+
+        let topic = messages_vec[0].0.clone();
+        assert_eq!(topic, "shared-resources-usage");
+        let payload1 = from_utf8(&(messages_vec[0].1)).unwrap();
+        let m1: Value = serde_json::from_str(payload1).unwrap();
+        assert_eq!(m1["shared_resource_id"], "resource_1".to_string());
+        assert_eq!(m1["app_feature"], "transactions".to_string());
+        assert_eq!(m1["usage_unit"], "bytes".to_string());
+        assert_eq!(m1["amount"], 100);
+
+        let payload2 = from_utf8(&(messages_vec[1].1)).unwrap();
+        let m2: Value = serde_json::from_str(payload2).unwrap();
+        assert_eq!(m2["shared_resource_id"], "resource_1".to_string());
+        assert_eq!(m2["app_feature"], "spans".to_string());
+        assert_eq!(m2["usage_unit"], "bytes".to_string());
+        assert_eq!(m2["amount"], 200);
+
+        let res = accountant.flush();
+        assert!(res.is_ok());
+        // Messages are still the same we had before the previous step.
         assert_eq!(messages.borrow().len(), 2);
     }
 }
