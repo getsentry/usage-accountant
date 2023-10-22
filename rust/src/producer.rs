@@ -76,7 +76,7 @@ impl ProducerContext for CaptureErrorContext {
     type DeliveryOpaque = ();
 
     fn delivery(&self, _: &DeliveryResult, _delivery_opaque: Self::DeliveryOpaque) {
-        // TODO: Do something useful here
+        // TODO: Do something useful
     }
 }
 
