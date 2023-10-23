@@ -1,9 +1,7 @@
 extern crate sentry_usage_accountant;
 
 use clap::Parser;
-use sentry_usage_accountant::accountant::UsageAccountant;
-use sentry_usage_accountant::accumulator::UsageUnit;
-use sentry_usage_accountant::producer::KafkaConfig;
+use sentry_usage_accountant::{UsageAccountant, UsageUnit, KafkaConfig};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
