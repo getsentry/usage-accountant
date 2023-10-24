@@ -1,5 +1,9 @@
-/**
- */
+//! This module provides an abstraction over a Kafka producer in
+//! order to allow client code to instantiate the producer
+//! implementation they want without depending on the rdkafka
+//! ThreadedProducer.
+//!
+//! It also simplify unit tests.
 
 use rdkafka::config::ClientConfig as RdKafkaConfig;
 use std::collections::HashMap;
@@ -9,6 +13,9 @@ use rdkafka::producer::{BaseRecord, ThreadedProducer};
 use thiserror::Error;
 use std::cell::RefCell;
 
+/// This structure wraps the parameters to initialize a producer.
+/// This struct is there in order not to expose the rdkafka
+/// details outside.
 #[derive(Debug, Clone)]
 pub struct KafkaConfig {
     config_map: HashMap<String, String>,
@@ -76,7 +83,8 @@ impl ProducerContext for CaptureErrorContext {
     type DeliveryOpaque = ();
 
     fn delivery(&self, _: &DeliveryResult, _delivery_opaque: Self::DeliveryOpaque) {
-        // TODO: Do something useful
+        // TODO: Do something useful. AS of now guarantees of delivery
+        // in this producer are not particularly critical.
     }
 }
 
@@ -92,6 +100,9 @@ pub enum ClientError {
     InvalidConfig(#[source] rdkafka::error::KafkaError),
 }
 
+/// A basic Kafka Producer trait.
+///
+/// We do not neet to set headers or key for this data.
 pub trait Producer {
     fn send(&mut self, topic_name: String, payload: &[u8]) -> Result<(), ClientError>;
 }

@@ -1,8 +1,17 @@
+//! This module contains the structure that accumulates usage data
+//! locally before flushing to Kafka.
+//!
+//! The accumulator pre-aggregates usage per timestamp based on
+//! the granularity provided at instantiation.
+//!
+
 use std::fmt;
 use std::collections::HashMap;
 use chrono::{DateTime, Duration, Local, DurationRound};
 use std::mem;
 
+/// The unit of measures we support when recording usage.
+/// more can be added.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum UsageUnit {
     Milliseconds,
@@ -35,6 +44,8 @@ pub struct UsageAccumulator {
 }
 
 impl UsageAccumulator {
+    /// Constructs a new Accumulator. Here is where the granularity
+    /// is provided.
     pub fn new(granularity_sec: Option<u32>) -> Self {
         Self {
             usage_batch: HashMap::new(),
@@ -43,6 +54,13 @@ impl UsageAccumulator {
         }
     }
 
+    /// Records an amount of usage for a resource, app_feature, timestamp
+    /// tuple.
+    ///
+    /// The timestamp provided is then quantized according to the
+    /// granularity this structure is instantiated with so data is
+    /// bucketed with fixed bucket sizes.
+    /// The system timestamp should be passed in most cases.
     pub fn record(
         &mut self,
         usage_time: DateTime<Local>,
@@ -56,7 +74,7 @@ impl UsageAccumulator {
         ).unwrap();
 
         if self.first_timestamp.is_none() {
-            self.first_timestamp = Some(quantized_timestamp.clone());
+            self.first_timestamp = Some(quantized_timestamp);
         }
 
         let key = UsageKey {
@@ -76,6 +94,11 @@ impl UsageAccumulator {
         self.usage_batch.insert(key, curr_value + amount);
     }
 
+    /// Returns true if the bucket is ready to be flushed.
+    ///
+    /// Ready to be flushed means that the bucket is not empty
+    /// and at least `granularity_sec` seconds have passed since
+    /// the first chunk of data was added.
     pub fn should_flush(&self, current_time: DateTime<Local>) -> bool {
         return
             self.first_timestamp.is_some() &&
@@ -85,6 +108,7 @@ impl UsageAccumulator {
             );
     }
 
+    /// Return the current bucket and clears up the state.
     pub fn flush(&mut self) -> HashMap<UsageKey, u64> {
         self.first_timestamp = None;
         let mut ret_val: HashMap<UsageKey, u64> = HashMap::new();

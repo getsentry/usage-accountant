@@ -4,6 +4,21 @@ use chrono::Local;
 use serde_json::json;
 
 static DEFAULT_TOPIC_NAME: &str = "shared-resources-usage";
+/// This is the entry point for the library. It is in most cases
+/// everything you need to instrument your application.
+///
+/// The UsageAccountant needs a `Producer` and a `UsageAccumulator`.
+/// Data is stored in the accumulator and, periodically, it is
+/// flushed into the Kafka topic via a consumer.
+///
+/// Accumulating data locally is critical to reduce the performance impact
+/// of this library to a minimum and reduce the amount of Kafka messages.
+/// This means that this structure should be instantiated rarely.
+/// Possibly only once per application (or per thread).
+///
+/// Avoid creating a UsageAccountant every time some data needs to
+/// be recorded.
+
 pub struct UsageAccountant<'a> {
     accumulator: UsageAccumulator,
     producer: Box<dyn Producer + 'a>,
@@ -11,6 +26,11 @@ pub struct UsageAccountant<'a> {
 }
 
 impl<'a> UsageAccountant<'a> {
+    /// Instantiates a UsageAccountant from a Kafka config object.
+    /// This initialization method lets the `UsageAccountant` create
+    /// the producer and own it.
+    ///
+    /// You should very rarely change topic name or granularity.
     pub fn new(
         producer_config: KafkaConfig,
         topic_name: Option<String>,
@@ -23,6 +43,8 @@ impl<'a> UsageAccountant<'a> {
         )
     }
 
+    /// Leaves the responsibility to provide a producer to the
+    /// client. Most of the times you should not need to use this.
     pub fn new_with_producer(
         producer: Box<dyn Producer + 'a>,
         topic_name: Option<String>,
@@ -40,6 +62,10 @@ impl<'a> UsageAccountant<'a> {
         }
     }
 
+    /// Records an mount of usage for a resource, and app_feature.
+    ///
+    /// It flushes the batch if that is ready to be flushed.
+    /// The timestamp used is the system timestamp.
     pub fn record(
         &mut self,
         resource_id: String,
@@ -55,6 +81,11 @@ impl<'a> UsageAccountant<'a> {
         Ok(())
     }
 
+    /// Forces a flush of the existing batch.
+    ///
+    /// This method should be called manually only when the application
+    /// is about to shut down or the `UsageAccountant` is about to be
+    /// destroyed.
     pub fn flush(
         &mut self,
     ) -> Result<(), ClientError> {
