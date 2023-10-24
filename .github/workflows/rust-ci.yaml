@@ -6,10 +6,10 @@ on:
       - main
       - release/**
     paths:
-      - py/**
+      - rust/**
   pull_request:
     paths:
-      - py/**
+      - rust/**
 
 env:
   RUSTFLAGS: -Dwarnings
