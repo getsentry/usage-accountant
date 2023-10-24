@@ -6,12 +6,12 @@
 //! It also simplify unit tests.
 
 use rdkafka::config::ClientConfig as RdKafkaConfig;
-use std::collections::HashMap;
+use rdkafka::producer::{BaseRecord, ThreadedProducer};
 use rdkafka::producer::{DeliveryResult, ProducerContext};
 use rdkafka::ClientContext;
-use rdkafka::producer::{BaseRecord, ThreadedProducer};
-use thiserror::Error;
 use std::cell::RefCell;
+use std::collections::HashMap;
+use thiserror::Error;
 
 /// This structure wraps the parameters to initialize a producer.
 /// This struct is there in order not to expose the rdkafka
@@ -22,10 +22,7 @@ pub struct KafkaConfig {
 }
 
 impl KafkaConfig {
-    pub fn new_config<V>(
-        bootstrap_servers: V,
-        override_params: Option<HashMap<String, V>>,
-    ) -> Self
+    pub fn new_config<V>(bootstrap_servers: V, override_params: Option<HashMap<String, V>>) -> Self
     where
         V: Into<String>,
     {
@@ -108,12 +105,14 @@ pub trait Producer {
 }
 
 pub struct DummyProducer<'a> {
-    pub messages: &'a RefCell<Vec<(String, Vec<u8>)>>
+    pub messages: &'a RefCell<Vec<(String, Vec<u8>)>>,
 }
 
 impl<'a> Producer for DummyProducer<'a> {
     fn send(&mut self, topic_name: String, payload: &[u8]) -> Result<(), ClientError> {
-        self.messages.borrow_mut().push((topic_name.clone(), payload.to_vec()));
+        self.messages
+            .borrow_mut()
+            .push((topic_name.clone(), payload.to_vec()));
         Ok(())
     }
 }
@@ -123,33 +122,34 @@ pub struct KafkaProducer {
 }
 
 impl KafkaProducer {
-    pub fn new(config: KafkaConfig) -> KafkaProducer{
+    pub fn new(config: KafkaConfig) -> KafkaProducer {
         let producer_config: RdKafkaConfig = config.into();
         KafkaProducer {
             producer: producer_config
                 .create_with_context(CaptureErrorContext)
-                .expect("Producer creation error")
+                .expect("Producer creation error"),
         }
     }
 }
 
 impl Producer for KafkaProducer {
     fn send(&mut self, topic_name: String, payload: &[u8]) -> Result<(), ClientError> {
-        let record: BaseRecord<'_, [u8], [u8]> = BaseRecord::to(topic_name.as_str()).payload(payload);
-        self.producer.send(record).map_err(|(error, _message)| {
-            ClientError::SendFailed(error)
-        })
+        let record: BaseRecord<'_, [u8], [u8]> =
+            BaseRecord::to(topic_name.as_str()).payload(payload);
+        self.producer
+            .send(record)
+            .map_err(|(error, _message)| ClientError::SendFailed(error))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::KafkaConfig;
     use super::DummyProducer;
+    use super::KafkaConfig;
     use super::Producer;
     use rdkafka::config::ClientConfig as RdKafkaConfig;
-    use std::collections::HashMap;
     use std::cell::RefCell;
+    use std::collections::HashMap;
 
     #[test]
     fn test_build_producer_configuration() {
@@ -171,7 +171,7 @@ mod tests {
     #[test]
     fn test_dummy_producer() {
         let messages = RefCell::new(Vec::new());
-        let mut producer = DummyProducer{
+        let mut producer = DummyProducer {
             messages: &messages,
         };
         let res = producer.send("topic".to_string(), "message".as_bytes());

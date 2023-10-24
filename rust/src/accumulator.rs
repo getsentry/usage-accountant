@@ -5,9 +5,9 @@
 //! the granularity provided at instantiation.
 //!
 
-use std::fmt;
+use chrono::{DateTime, Duration, DurationRound, Local};
 use std::collections::HashMap;
-use chrono::{DateTime, Duration, Local, DurationRound};
+use std::fmt;
 use std::mem;
 
 /// The unit of measures we support when recording usage.
@@ -34,7 +34,7 @@ pub struct UsageKey {
     pub quantized_timestamp: DateTime<Local>,
     pub resource_id: String,
     pub app_feature: String,
-    pub unit: UsageUnit
+    pub unit: UsageUnit,
 }
 
 pub struct UsageAccumulator {
@@ -49,8 +49,8 @@ impl UsageAccumulator {
     pub fn new(granularity_sec: Option<u32>) -> Self {
         Self {
             usage_batch: HashMap::new(),
-            granularity_sec:  granularity_sec.unwrap_or(60),
-            first_timestamp: None
+            granularity_sec: granularity_sec.unwrap_or(60),
+            first_timestamp: None,
         }
     }
 
@@ -69,9 +69,9 @@ impl UsageAccumulator {
         amount: u64,
         usage_unit: UsageUnit,
     ) {
-        let quantized_timestamp: DateTime<Local> = usage_time.duration_trunc(
-            Duration::seconds(i64::from(self.granularity_sec))
-        ).unwrap();
+        let quantized_timestamp: DateTime<Local> = usage_time
+            .duration_trunc(Duration::seconds(i64::from(self.granularity_sec)))
+            .unwrap();
 
         if self.first_timestamp.is_none() {
             self.first_timestamp = Some(quantized_timestamp);
@@ -100,12 +100,10 @@ impl UsageAccumulator {
     /// and at least `granularity_sec` seconds have passed since
     /// the first chunk of data was added.
     pub fn should_flush(&self, current_time: DateTime<Local>) -> bool {
-        return
-            self.first_timestamp.is_some() &&
-            self.usage_batch.keys().len() > 0 &&
-            current_time - self.first_timestamp.unwrap() > Duration::seconds(
-                i64::from(self.granularity_sec)
-            );
+        return self.first_timestamp.is_some()
+            && self.usage_batch.keys().len() > 0
+            && current_time - self.first_timestamp.unwrap()
+                > Duration::seconds(i64::from(self.granularity_sec));
     }
 
     /// Return the current bucket and clears up the state.
@@ -119,19 +117,15 @@ impl UsageAccumulator {
 
 #[cfg(test)]
 mod tests {
+    use super::{UsageAccumulator, UsageKey, UsageUnit};
     use chrono::{Local, TimeZone};
     use std::collections::HashMap;
-    use super::{UsageUnit, UsageKey, UsageAccumulator};
 
     #[test]
     fn empty_batch() {
         let mut accumulator = UsageAccumulator::new(None);
-        assert!(!accumulator.should_flush(
-            Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 25).unwrap()
-        ));
-        assert!(!accumulator.should_flush(
-            Local.with_ymd_and_hms(2023, 10, 8, 22, 16, 25).unwrap()
-        ));
+        assert!(!accumulator.should_flush(Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 25).unwrap()));
+        assert!(!accumulator.should_flush(Local.with_ymd_and_hms(2023, 10, 8, 22, 16, 25).unwrap()));
 
         let message = accumulator.flush();
         assert_eq!(message.keys().len(), 0);
@@ -155,26 +149,28 @@ mod tests {
             UsageUnit::Milliseconds,
         );
 
-        assert!(!accumulator.should_flush(
-            Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 25).unwrap()
-        ));
-        assert!(accumulator.should_flush(
-            Local.with_ymd_and_hms(2023, 10, 8, 22, 16, 25).unwrap()
-        ));
+        assert!(!accumulator.should_flush(Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 25).unwrap()));
+        assert!(accumulator.should_flush(Local.with_ymd_and_hms(2023, 10, 8, 22, 16, 25).unwrap()));
         let ret = accumulator.flush();
         let test_val = HashMap::from([
-            (UsageKey{
-                quantized_timestamp: Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 0).unwrap(),
-                resource_id: "genericmetrics_consumer".to_string(),
-                app_feature: "transactions".to_string(),
-                unit: UsageUnit::Milliseconds,
-            }, 100),
-            (UsageKey{
-                quantized_timestamp: Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 0).unwrap(),
-                resource_id: "genericmetrics_consumer".to_string(),
-                app_feature: "spans".to_string(),
-                unit: UsageUnit::Milliseconds,
-            }, 200),
+            (
+                UsageKey {
+                    quantized_timestamp: Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 0).unwrap(),
+                    resource_id: "genericmetrics_consumer".to_string(),
+                    app_feature: "transactions".to_string(),
+                    unit: UsageUnit::Milliseconds,
+                },
+                100,
+            ),
+            (
+                UsageKey {
+                    quantized_timestamp: Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 0).unwrap(),
+                    resource_id: "genericmetrics_consumer".to_string(),
+                    app_feature: "spans".to_string(),
+                    unit: UsageUnit::Milliseconds,
+                },
+                200,
+            ),
         ]);
         assert_eq!(ret, test_val);
 
@@ -209,18 +205,24 @@ mod tests {
 
         let ret = accumulator.flush();
         let test_val = HashMap::from([
-            (UsageKey{
-                quantized_timestamp: Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 0).unwrap(),
-                resource_id: "genericmetrics_consumer".to_string(),
-                app_feature: "transactions".to_string(),
-                unit: UsageUnit::Milliseconds,
-            }, 200),
-            (UsageKey{
-                quantized_timestamp: Local.with_ymd_and_hms(2023, 10, 8, 22, 16, 0).unwrap(),
-                resource_id: "genericmetrics_consumer".to_string(),
-                app_feature: "transactions".to_string(),
-                unit: UsageUnit::Milliseconds,
-            }, 100),
+            (
+                UsageKey {
+                    quantized_timestamp: Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 0).unwrap(),
+                    resource_id: "genericmetrics_consumer".to_string(),
+                    app_feature: "transactions".to_string(),
+                    unit: UsageUnit::Milliseconds,
+                },
+                200,
+            ),
+            (
+                UsageKey {
+                    quantized_timestamp: Local.with_ymd_and_hms(2023, 10, 8, 22, 16, 0).unwrap(),
+                    resource_id: "genericmetrics_consumer".to_string(),
+                    app_feature: "transactions".to_string(),
+                    unit: UsageUnit::Milliseconds,
+                },
+                100,
+            ),
         ]);
         assert_eq!(ret, test_val);
 

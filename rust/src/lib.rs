@@ -53,11 +53,11 @@
 //! ```
 //!
 
-pub mod accumulator;
 pub mod accountant;
+pub mod accumulator;
 pub mod producer;
 
+pub use accountant::UsageAccountant;
 #[doc(inline)]
 pub use accumulator::UsageUnit;
-pub use accountant::UsageAccountant;
-pub use producer::{Producer, KafkaConfig};
+pub use producer::{KafkaConfig, Producer};

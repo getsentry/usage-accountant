@@ -21,9 +21,5 @@ fn main() {
     let kafka_config = KafkaConfig::new_producer_config(args.bootstrap_server, None);
     let mut producer = KafkaProducer::new(kafka_config);
 
-    let _ = producer.send(
-        "test_topic".to_string(),
-        "{a:1}".as_bytes(),
-    );
-
+    let _ = producer.send("test_topic".to_string(), "{a:1}".as_bytes());
 }

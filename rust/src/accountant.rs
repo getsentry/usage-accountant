@@ -1,5 +1,5 @@
-use crate::accumulator::{UsageUnit, UsageAccumulator};
-use crate::producer::{ClientError, KafkaConfig, Producer, KafkaProducer};
+use crate::accumulator::{UsageAccumulator, UsageUnit};
+use crate::producer::{ClientError, KafkaConfig, KafkaProducer, Producer};
 use chrono::Local;
 use serde_json::json;
 
@@ -74,7 +74,8 @@ impl<'a> UsageAccountant<'a> {
         unit: UsageUnit,
     ) -> Result<(), ClientError> {
         let current_time = Local::now();
-        self.accumulator.record(current_time, resource_id, app_feature, amount, unit);
+        self.accumulator
+            .record(current_time, resource_id, app_feature, amount, unit);
         if self.accumulator.should_flush(current_time) {
             self.flush()?;
         }
@@ -86,9 +87,7 @@ impl<'a> UsageAccountant<'a> {
     /// This method should be called manually only when the application
     /// is about to shut down or the `UsageAccountant` is about to be
     /// destroyed.
-    pub fn flush(
-        &mut self,
-    ) -> Result<(), ClientError> {
+    pub fn flush(&mut self) -> Result<(), ClientError> {
         let flushed_content = self.accumulator.flush();
         for (key, amount) in flushed_content {
             let message = json!({
@@ -99,34 +98,29 @@ impl<'a> UsageAccountant<'a> {
                 "amount": amount,
             });
 
-            self.producer.send(
-                self.topic.clone(),
-                message.to_string().as_bytes(),
-            )?;
+            self.producer
+                .send(self.topic.clone(), message.to_string().as_bytes())?;
         }
         Ok(())
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::UsageAccountant;
     use super::super::accumulator::UsageUnit;
     use super::super::producer::DummyProducer;
-    use std::cell::RefCell;
+    use super::UsageAccountant;
     use serde_json::Value;
+    use std::cell::RefCell;
     use std::str::from_utf8;
 
     #[test]
     fn test_empty_batch() {
         let messages = RefCell::new(Vec::new());
-        let producer = DummyProducer{messages: &messages};
-        let mut accountant = UsageAccountant::new_with_producer(
-            Box::new(producer),
-            None,
-            None,
-        );
+        let producer = DummyProducer {
+            messages: &messages,
+        };
+        let mut accountant = UsageAccountant::new_with_producer(Box::new(producer), None, None);
 
         let res = accountant.flush();
         assert!(res.is_ok());
@@ -136,24 +130,24 @@ mod tests {
     #[test]
     fn test_three_messages() {
         let messages = RefCell::new(Vec::new());
-        let producer = DummyProducer{
+        let producer = DummyProducer {
             messages: &messages,
         };
-        let mut accountant = UsageAccountant::new_with_producer(
-            Box::new(producer),
-            None,
-            None,
-        );
+        let mut accountant = UsageAccountant::new_with_producer(Box::new(producer), None, None);
 
         let res1 = accountant.record(
             "resource_1".to_string(),
             "transactions".to_string(),
-            100, UsageUnit::Bytes);
+            100,
+            UsageUnit::Bytes,
+        );
         assert!(res1.is_ok());
         let res2 = accountant.record(
             "resource_1".to_string(),
             "spans".to_string(),
-            200, UsageUnit::Bytes);
+            200,
+            UsageUnit::Bytes,
+        );
         assert!(res2.is_ok());
 
         let res = accountant.flush();
