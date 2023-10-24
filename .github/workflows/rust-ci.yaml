@@ -1,5 +1,4 @@
 name: CI for the Rust crate
-
 on:
   push:
     branches:

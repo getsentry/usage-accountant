@@ -28,9 +28,6 @@
 //! Accumulating data locally is critical to reduce the performance impact
 //! of this library to a minimum and reduce the amount of Kafka messages.
 //!
-//! The entry point is the `UsageAccountant` struct which provides the
-//! method to record data and to flush.
-//!
 //! # Example
 //!
 //! ```
