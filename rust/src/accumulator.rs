@@ -18,7 +18,7 @@ use std::mem;
 pub enum UsageUnit {
     Milliseconds,
     Bytes,
-    MillisecondsSec,
+    BytesSec,
 }
 
 impl fmt::Display for UsageUnit {
@@ -26,7 +26,7 @@ impl fmt::Display for UsageUnit {
         match self {
             UsageUnit::Milliseconds => write!(f, "milliseconds"),
             UsageUnit::Bytes => write!(f, "bytes"),
-            UsageUnit::MillisecondsSec => write!(f, "milliseconds_sec"),
+            UsageUnit::BytesSec => write!(f, "bytes_sec"),
         }
     }
 }
@@ -41,17 +41,17 @@ pub struct UsageKey {
 
 pub struct UsageAccumulator {
     usage_batch: HashMap<UsageKey, u64>,
-    granularity_sec: Duration,
+    granularity: Duration,
     first_timestamp: Option<DateTime<Local>>,
 }
 
 impl UsageAccumulator {
     /// Constructs a new Accumulator. Here is where the granularity
     /// is provided.
-    pub fn new(granularity_sec: Option<Duration>) -> Self {
+    pub fn new(granularity: Option<Duration>) -> Self {
         Self {
             usage_batch: HashMap::new(),
-            granularity_sec: granularity_sec.unwrap_or(Duration::seconds(60)),
+            granularity: granularity.unwrap_or(Duration::seconds(60)),
             first_timestamp: None,
         }
     }
@@ -72,7 +72,7 @@ impl UsageAccumulator {
         usage_unit: UsageUnit,
     ) {
         let quantized_timestamp: DateTime<Local> =
-            usage_time.duration_trunc(self.granularity_sec).unwrap();
+            usage_time.duration_trunc(self.granularity).unwrap();
 
         if self.first_timestamp.is_none() {
             self.first_timestamp = Some(quantized_timestamp);
@@ -92,12 +92,12 @@ impl UsageAccumulator {
     /// Returns true if the bucket is ready to be flushed.
     ///
     /// Ready to be flushed means that the bucket is not empty
-    /// and at least `granularity_sec` seconds have passed since
+    /// and at least `granularity` seconds have passed since
     /// the first chunk of data was added.
     pub fn should_flush(&self, current_time: DateTime<Local>) -> bool {
         return self.first_timestamp.is_some()
             && self.usage_batch.keys().len() > 0
-            && current_time - self.first_timestamp.unwrap() > self.granularity_sec;
+            && current_time - self.first_timestamp.unwrap() > self.granularity;
     }
 
     /// Return the current bucket and clears up the state.

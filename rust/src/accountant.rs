@@ -34,12 +34,12 @@ impl<'a> UsageAccountant<'a> {
     pub fn new(
         producer_config: KafkaConfig,
         topic_name: Option<&str>,
-        granularity_sec: Option<Duration>,
+        granularity: Option<Duration>,
     ) -> UsageAccountant<'a> {
         UsageAccountant::new_with_producer(
             Box::new(KafkaProducer::new(producer_config)),
             topic_name,
-            granularity_sec,
+            granularity,
         )
     }
 
@@ -48,12 +48,12 @@ impl<'a> UsageAccountant<'a> {
     pub fn new_with_producer(
         producer: Box<dyn Producer + 'a>,
         topic_name: Option<&str>,
-        granularity_sec: Option<Duration>,
+        granularity: Option<Duration>,
     ) -> UsageAccountant<'a> {
         let topic = topic_name.unwrap_or(DEFAULT_TOPIC_NAME).to_string();
 
         UsageAccountant {
-            accumulator: UsageAccumulator::new(granularity_sec),
+            accumulator: UsageAccumulator::new(granularity),
             producer,
             topic,
         }
@@ -147,16 +147,22 @@ mod tests {
         let payload1 = from_utf8(&(messages_vec[0].1)).unwrap();
         let m1: Value = serde_json::from_str(payload1).unwrap();
         assert_eq!(m1["shared_resource_id"], "resource_1".to_string());
-        assert_eq!(m1["app_feature"], "transactions".to_string());
         assert_eq!(m1["usage_unit"], "bytes".to_string());
-        assert_eq!(m1["amount"], 100);
 
         let payload2 = from_utf8(&(messages_vec[1].1)).unwrap();
         let m2: Value = serde_json::from_str(payload2).unwrap();
         assert_eq!(m2["shared_resource_id"], "resource_1".to_string());
-        assert_eq!(m2["app_feature"], "spans".to_string());
         assert_eq!(m2["usage_unit"], "bytes".to_string());
-        assert_eq!(m2["amount"], 200);
+
+        // The messages will not necessarily be in order.
+        assert_ne!(m1["app_feature"], m2["app_feature"]);
+        if m1["app_feature"] == "transactions" {
+            assert_eq!(m2["app_feature"], "spans".to_string())
+        } else {
+            assert_eq!(m2["app_feature"], "transactions".to_string());
+            assert_eq!(m1["app_feature"], "spans".to_string());
+        }
+        assert_ne!(m1["amount"], m2["amount"]);
 
         let res = accountant.flush();
         assert!(res.is_ok());

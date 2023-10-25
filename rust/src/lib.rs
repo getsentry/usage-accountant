@@ -53,7 +53,7 @@
 //!
 
 pub mod accountant;
-pub mod accumulator;
+mod accumulator;
 pub mod producer;
 
 pub use accountant::UsageAccountant;
