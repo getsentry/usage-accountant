@@ -35,4 +35,5 @@ jobs:
         uses: swatinem/rust-cache@v2
 
       - name: Run cargo test
+        working-directory: ./rust
         run: cargo test --workspace --all-features --locked
