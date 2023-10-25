@@ -1,6 +1,6 @@
 use crate::accumulator::{UsageAccumulator, UsageUnit};
 use crate::producer::{ClientError, KafkaConfig, KafkaProducer, Producer};
-use chrono::Local;
+use chrono::{Duration, Local};
 use serde_json::json;
 
 static DEFAULT_TOPIC_NAME: &str = "shared-resources-usage";
@@ -33,8 +33,8 @@ impl<'a> UsageAccountant<'a> {
     /// You should very rarely change topic name or granularity.
     pub fn new(
         producer_config: KafkaConfig,
-        topic_name: Option<String>,
-        granularity_sec: Option<u32>,
+        topic_name: Option<&str>,
+        granularity_sec: Option<Duration>,
     ) -> UsageAccountant<'a> {
         UsageAccountant::new_with_producer(
             Box::new(KafkaProducer::new(producer_config)),
@@ -47,13 +47,10 @@ impl<'a> UsageAccountant<'a> {
     /// client. Most of the times you should not need to use this.
     pub fn new_with_producer(
         producer: Box<dyn Producer + 'a>,
-        topic_name: Option<String>,
-        granularity_sec: Option<u32>,
+        topic_name: Option<&str>,
+        granularity_sec: Option<Duration>,
     ) -> UsageAccountant<'a> {
-        let topic = match topic_name {
-            None => DEFAULT_TOPIC_NAME.to_string(),
-            Some(name) => name,
-        };
+        let topic = topic_name.unwrap_or(DEFAULT_TOPIC_NAME).to_string();
 
         UsageAccountant {
             accumulator: UsageAccumulator::new(granularity_sec),
@@ -68,8 +65,8 @@ impl<'a> UsageAccountant<'a> {
     /// The timestamp used is the system timestamp.
     pub fn record(
         &mut self,
-        resource_id: String,
-        app_feature: String,
+        resource_id: &str,
+        app_feature: &str,
         amount: u64,
         unit: UsageUnit,
     ) -> Result<(), ClientError> {
@@ -94,12 +91,12 @@ impl<'a> UsageAccountant<'a> {
                 "timestamp": key.quantized_timestamp.timestamp(),
                 "shared_resource_id": key.resource_id,
                 "app_feature": key.app_feature,
-                "usage_unit": key.unit.to_string(),
+                "usage_unit": key.unit,
                 "amount": amount,
             });
 
             self.producer
-                .send(self.topic.clone(), message.to_string().as_bytes())?;
+                .send(self.topic.as_str(), message.to_string().as_bytes())?;
         }
         Ok(())
     }
@@ -135,19 +132,9 @@ mod tests {
         };
         let mut accountant = UsageAccountant::new_with_producer(Box::new(producer), None, None);
 
-        let res1 = accountant.record(
-            "resource_1".to_string(),
-            "transactions".to_string(),
-            100,
-            UsageUnit::Bytes,
-        );
+        let res1 = accountant.record("resource_1", "transactions", 100, UsageUnit::Bytes);
         assert!(res1.is_ok());
-        let res2 = accountant.record(
-            "resource_1".to_string(),
-            "spans".to_string(),
-            200,
-            UsageUnit::Bytes,
-        );
+        let res2 = accountant.record("resource_1", "spans", 200, UsageUnit::Bytes);
         assert!(res2.is_ok());
 
         let res = accountant.flush();

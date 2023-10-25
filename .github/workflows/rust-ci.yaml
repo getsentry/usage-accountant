@@ -25,23 +25,14 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: recursive
+      - name: Checkout sources
+        uses: actions/checkout@v3
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+      - name: Install rust stable toolchain
+        run: rustup toolchain install stable --profile minimal --no-self-update
 
-      - uses: swatinem/rust-cache@v1
-        with:
-          key: ${{ github.job }}
+      - name: Cache rust cargo artifacts
+        uses: swatinem/rust-cache@v2
 
-      - name: Run Cargo Tests
-        uses: actions-rs/cargo@v1
-        working-directory: ./rust
-        with:
-          command: test
-          args: --workspace
+      - name: Run cargo test
+        run: cargo test --workspace --all-features --locked

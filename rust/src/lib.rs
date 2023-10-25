@@ -31,8 +31,10 @@
 //! # Example
 //!
 //! ```
+//! use sentry_usage_accountant::{KafkaConfig, UsageAccountant, UsageUnit};
+//!
 //! let kafka_config = KafkaConfig::new_producer_config(
-//!     BOOTSTRAP_SERVER,
+//!     "localhost:9092",
 //!     None
 //! );
 //! let mut accountant = UsageAccountant::new(
@@ -41,8 +43,8 @@
 //!    None,
 //! );
 //! accountant.record(
-//!    "generic_metrics_indexer_consumer".to_string(),
-//!    "transactions".to_string(),
+//!    "generic_metrics_indexer_consumer",
+//!    "transactions",
 //!    100,
 //!    UsageUnit::Bytes,
 //! ).unwrap();

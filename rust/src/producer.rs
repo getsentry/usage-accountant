@@ -22,26 +22,14 @@ pub struct KafkaConfig {
 }
 
 impl KafkaConfig {
-    pub fn new_config<V>(bootstrap_servers: V, override_params: Option<HashMap<String, V>>) -> Self
-    where
-        V: Into<String>,
-    {
+    pub fn new_producer_config(
+        bootstrap_servers: &str,
+        override_params: Option<HashMap<String, String>>,
+    ) -> Self {
         let mut config_map: HashMap<String, String> = HashMap::new();
         config_map.insert("bootstrap.servers".to_string(), bootstrap_servers.into());
 
         let config = Self { config_map };
-
-        apply_override_params(config, override_params)
-    }
-
-    pub fn new_producer_config<V>(
-        bootstrap_servers: V,
-        override_params: Option<HashMap<String, String>>,
-    ) -> Self
-    where
-        V: Into<String>,
-    {
-        let config = KafkaConfig::new_config(bootstrap_servers, None);
 
         apply_override_params(config, override_params)
     }
@@ -101,7 +89,7 @@ pub enum ClientError {
 ///
 /// We do not neet to set headers or key for this data.
 pub trait Producer {
-    fn send(&mut self, topic_name: String, payload: &[u8]) -> Result<(), ClientError>;
+    fn send(&mut self, topic_name: &str, payload: &[u8]) -> Result<(), ClientError>;
 }
 
 pub struct DummyProducer<'a> {
@@ -109,10 +97,10 @@ pub struct DummyProducer<'a> {
 }
 
 impl<'a> Producer for DummyProducer<'a> {
-    fn send(&mut self, topic_name: String, payload: &[u8]) -> Result<(), ClientError> {
+    fn send(&mut self, topic_name: &str, payload: &[u8]) -> Result<(), ClientError> {
         self.messages
             .borrow_mut()
-            .push((topic_name.clone(), payload.to_vec()));
+            .push((topic_name.to_string(), payload.to_vec()));
         Ok(())
     }
 }
@@ -133,9 +121,8 @@ impl KafkaProducer {
 }
 
 impl Producer for KafkaProducer {
-    fn send(&mut self, topic_name: String, payload: &[u8]) -> Result<(), ClientError> {
-        let record: BaseRecord<'_, [u8], [u8]> =
-            BaseRecord::to(topic_name.as_str()).payload(payload);
+    fn send(&mut self, topic_name: &str, payload: &[u8]) -> Result<(), ClientError> {
+        let record: BaseRecord<'_, [u8], [u8]> = BaseRecord::to(topic_name).payload(payload);
         self.producer
             .send(record)
             .map_err(|(error, _message)| ClientError::SendFailed(error))
@@ -154,7 +141,7 @@ mod tests {
     #[test]
     fn test_build_producer_configuration() {
         let config = KafkaConfig::new_producer_config(
-            "localhost:9092".to_string(),
+            "localhost:9092",
             Some(HashMap::from([(
                 "queued.max.messages.kbytes".to_string(),
                 "1000000".to_string(),
@@ -174,7 +161,7 @@ mod tests {
         let mut producer = DummyProducer {
             messages: &messages,
         };
-        let res = producer.send("topic".to_string(), "message".as_bytes());
+        let res = producer.send("topic", "message".as_bytes());
         assert!(res.is_ok());
 
         assert_eq!(producer.messages.borrow().len(), 1);

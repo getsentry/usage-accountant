@@ -6,13 +6,15 @@
 //!
 
 use chrono::{DateTime, Duration, DurationRound, Local};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
 use std::mem;
 
 /// The unit of measures we support when recording usage.
 /// more can be added.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum UsageUnit {
     Milliseconds,
     Bytes,
@@ -39,17 +41,17 @@ pub struct UsageKey {
 
 pub struct UsageAccumulator {
     usage_batch: HashMap<UsageKey, u64>,
-    granularity_sec: u32,
+    granularity_sec: Duration,
     first_timestamp: Option<DateTime<Local>>,
 }
 
 impl UsageAccumulator {
     /// Constructs a new Accumulator. Here is where the granularity
     /// is provided.
-    pub fn new(granularity_sec: Option<u32>) -> Self {
+    pub fn new(granularity_sec: Option<Duration>) -> Self {
         Self {
             usage_batch: HashMap::new(),
-            granularity_sec: granularity_sec.unwrap_or(60),
+            granularity_sec: granularity_sec.unwrap_or(Duration::seconds(60)),
             first_timestamp: None,
         }
     }
@@ -64,14 +66,13 @@ impl UsageAccumulator {
     pub fn record(
         &mut self,
         usage_time: DateTime<Local>,
-        resource_id: String,
-        app_feature: String,
+        resource_id: &str,
+        app_feature: &str,
         amount: u64,
         usage_unit: UsageUnit,
     ) {
-        let quantized_timestamp: DateTime<Local> = usage_time
-            .duration_trunc(Duration::seconds(i64::from(self.granularity_sec)))
-            .unwrap();
+        let quantized_timestamp: DateTime<Local> =
+            usage_time.duration_trunc(self.granularity_sec).unwrap();
 
         if self.first_timestamp.is_none() {
             self.first_timestamp = Some(quantized_timestamp);
@@ -79,19 +80,13 @@ impl UsageAccumulator {
 
         let key = UsageKey {
             quantized_timestamp,
-            resource_id,
-            app_feature,
+            resource_id: resource_id.to_string(),
+            app_feature: app_feature.to_string(),
             unit: usage_unit,
         };
 
-        let mut curr_value = 0;
-        if !self.usage_batch.contains_key(&key) {
-            self.usage_batch.insert(key.clone(), 0);
-        } else {
-            curr_value = self.usage_batch[&key];
-        }
-
-        self.usage_batch.insert(key, curr_value + amount);
+        let value = self.usage_batch.entry(key).or_default();
+        *value += amount;
     }
 
     /// Returns true if the bucket is ready to be flushed.
@@ -102,16 +97,13 @@ impl UsageAccumulator {
     pub fn should_flush(&self, current_time: DateTime<Local>) -> bool {
         return self.first_timestamp.is_some()
             && self.usage_batch.keys().len() > 0
-            && current_time - self.first_timestamp.unwrap()
-                > Duration::seconds(i64::from(self.granularity_sec));
+            && current_time - self.first_timestamp.unwrap() > self.granularity_sec;
     }
 
     /// Return the current bucket and clears up the state.
     pub fn flush(&mut self) -> HashMap<UsageKey, u64> {
         self.first_timestamp = None;
-        let mut ret_val: HashMap<UsageKey, u64> = HashMap::new();
-        mem::swap(&mut self.usage_batch, &mut ret_val);
-        ret_val
+        mem::take(&mut self.usage_batch)
     }
 }
 
@@ -136,15 +128,15 @@ mod tests {
         let mut accumulator = UsageAccumulator::new(None);
         accumulator.record(
             Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 25).unwrap(),
-            "genericmetrics_consumer".to_string(),
-            "transactions".to_string(),
+            "genericmetrics_consumer",
+            "transactions",
             100,
             UsageUnit::Milliseconds,
         );
         accumulator.record(
             Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 45).unwrap(),
-            "genericmetrics_consumer".to_string(),
-            "spans".to_string(),
+            "genericmetrics_consumer",
+            "spans",
             200,
             UsageUnit::Milliseconds,
         );
@@ -183,22 +175,22 @@ mod tests {
         let mut accumulator = UsageAccumulator::new(None);
         accumulator.record(
             Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 25).unwrap(),
-            "genericmetrics_consumer".to_string(),
-            "transactions".to_string(),
+            "genericmetrics_consumer",
+            "transactions",
             100,
             UsageUnit::Milliseconds,
         );
         accumulator.record(
             Local.with_ymd_and_hms(2023, 10, 8, 22, 15, 45).unwrap(),
-            "genericmetrics_consumer".to_string(),
-            "transactions".to_string(),
+            "genericmetrics_consumer",
+            "transactions",
             100,
             UsageUnit::Milliseconds,
         );
         accumulator.record(
             Local.with_ymd_and_hms(2023, 10, 8, 22, 16, 45).unwrap(),
-            "genericmetrics_consumer".to_string(),
-            "transactions".to_string(),
+            "genericmetrics_consumer",
+            "transactions",
             100,
             UsageUnit::Milliseconds,
         );
