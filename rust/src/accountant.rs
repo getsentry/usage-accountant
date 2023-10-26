@@ -19,13 +19,13 @@ static DEFAULT_TOPIC_NAME: &str = "shared-resources-usage";
 /// Avoid creating a UsageAccountant every time some data needs to
 /// be recorded.
 
-pub struct UsageAccountant<'a> {
+pub struct UsageAccountant {
     accumulator: UsageAccumulator,
-    producer: Box<dyn Producer + 'a>,
+    producer: Box<dyn Producer>,
     topic: String,
 }
 
-impl<'a> UsageAccountant<'a> {
+impl UsageAccountant {
     /// Instantiates a UsageAccountant from a Kafka config object.
     /// This initialization method lets the `UsageAccountant` create
     /// the producer and own it.
@@ -35,7 +35,7 @@ impl<'a> UsageAccountant<'a> {
         producer_config: KafkaConfig,
         topic_name: Option<&str>,
         granularity: Option<Duration>,
-    ) -> UsageAccountant<'a> {
+    ) -> UsageAccountant {
         UsageAccountant::new_with_producer(
             Box::new(KafkaProducer::new(producer_config)),
             topic_name,
@@ -46,10 +46,10 @@ impl<'a> UsageAccountant<'a> {
     /// Leaves the responsibility to provide a producer to the
     /// client. Most of the times you should not need to use this.
     pub fn new_with_producer(
-        producer: Box<dyn Producer + 'a>,
+        producer: Box<dyn Producer>,
         topic_name: Option<&str>,
         granularity: Option<Duration>,
-    ) -> UsageAccountant<'a> {
+    ) -> UsageAccountant {
         let topic = topic_name.unwrap_or(DEFAULT_TOPIC_NAME).to_string();
 
         UsageAccountant {
@@ -109,13 +109,14 @@ mod tests {
     use super::UsageAccountant;
     use serde_json::Value;
     use std::cell::RefCell;
+    use std::rc::Rc;
     use std::str::from_utf8;
 
     #[test]
     fn test_empty_batch() {
-        let messages = RefCell::new(Vec::new());
+        let messages = Rc::new(RefCell::new(Vec::new()));
         let producer = DummyProducer {
-            messages: &messages,
+            messages: Rc::clone(&messages),
         };
         let mut accountant = UsageAccountant::new_with_producer(Box::new(producer), None, None);
 
@@ -126,9 +127,9 @@ mod tests {
 
     #[test]
     fn test_three_messages() {
-        let messages = RefCell::new(Vec::new());
+        let messages = Rc::new(RefCell::new(Vec::new()));
         let producer = DummyProducer {
-            messages: &messages,
+            messages: Rc::clone(&messages),
         };
         let mut accountant = UsageAccountant::new_with_producer(Box::new(producer), None, None);
 

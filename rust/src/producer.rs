@@ -11,6 +11,7 @@ use rdkafka::producer::{DeliveryResult, ProducerContext};
 use rdkafka::ClientContext;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 use thiserror::Error;
 
 /// This structure wraps the parameters to initialize a producer.
@@ -92,11 +93,11 @@ pub trait Producer {
     fn send(&mut self, topic_name: &str, payload: &[u8]) -> Result<(), ClientError>;
 }
 
-pub struct DummyProducer<'a> {
-    pub messages: &'a RefCell<Vec<(String, Vec<u8>)>>,
+pub struct DummyProducer {
+    pub messages: Rc<RefCell<Vec<(String, Vec<u8>)>>>,
 }
 
-impl<'a> Producer for DummyProducer<'a> {
+impl Producer for DummyProducer {
     fn send(&mut self, topic_name: &str, payload: &[u8]) -> Result<(), ClientError> {
         self.messages
             .borrow_mut()
@@ -137,6 +138,7 @@ mod tests {
     use rdkafka::config::ClientConfig as RdKafkaConfig;
     use std::cell::RefCell;
     use std::collections::HashMap;
+    use std::rc::Rc;
 
     #[test]
     fn test_build_producer_configuration() {
@@ -157,9 +159,9 @@ mod tests {
 
     #[test]
     fn test_dummy_producer() {
-        let messages = RefCell::new(Vec::new());
+        let messages = Rc::new(RefCell::new(Vec::new()));
         let mut producer = DummyProducer {
-            messages: &messages,
+            messages: Rc::clone(&messages),
         };
         let res = producer.send("topic", "message".as_bytes());
         assert!(res.is_ok());
