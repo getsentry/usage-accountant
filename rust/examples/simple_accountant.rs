@@ -29,5 +29,4 @@ fn main() {
     accountant
         .record("my_resource", "yet_another_feature", 100, UsageUnit::Bytes)
         .unwrap();
-    accountant.flush().unwrap();
 }

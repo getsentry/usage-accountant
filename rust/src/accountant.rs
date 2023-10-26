@@ -2,6 +2,7 @@ use crate::accumulator::{UsageAccumulator, UsageUnit};
 use crate::producer::{ClientError, KafkaConfig, KafkaProducer, Producer};
 use chrono::{Duration, Local};
 use serde_json::json;
+use std::ops::Drop;
 
 static DEFAULT_TOPIC_NAME: &str = "shared-resources-usage";
 /// This is the entry point for the library. It is in most cases
@@ -81,10 +82,9 @@ impl UsageAccountant {
 
     /// Forces a flush of the existing batch.
     ///
-    /// This method should be called manually only when the application
-    /// is about to shut down or the `UsageAccountant` is about to be
-    /// destroyed.
-    pub fn flush(&mut self) -> Result<(), ClientError> {
+    /// This method is called automatically when the Accountant
+    /// goes out of scope.
+    fn flush(&mut self) -> Result<(), ClientError> {
         let flushed_content = self.accumulator.flush();
         for (key, amount) in flushed_content {
             let message = json!({
@@ -99,6 +99,12 @@ impl UsageAccountant {
                 .send(self.topic.as_str(), message.to_string().as_bytes())?;
         }
         Ok(())
+    }
+}
+
+impl Drop for UsageAccountant {
+    fn drop(&mut self) {
+        _ = self.flush();
     }
 }
 

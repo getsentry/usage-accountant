@@ -48,7 +48,6 @@
 //!    100,
 //!    UsageUnit::Bytes,
 //! ).unwrap();
-//! accountant.flush().unwrap();
 //! ```
 //!
 
