@@ -53,9 +53,9 @@
 
 pub mod accountant;
 mod accumulator;
-pub mod producer;
+mod producer;
 
 pub use accountant::UsageAccountant;
 #[doc(inline)]
 pub use accumulator::UsageUnit;
-pub use producer::{KafkaConfig, Producer};
+pub use producer::{KafkaConfig, KafkaProducer, Producer};

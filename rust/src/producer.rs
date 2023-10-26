@@ -9,8 +9,10 @@ use rdkafka::config::ClientConfig as RdKafkaConfig;
 use rdkafka::producer::{BaseRecord, ThreadedProducer};
 use rdkafka::producer::{DeliveryResult, ProducerContext};
 use rdkafka::ClientContext;
+#[cfg(test)]
 use std::cell::RefCell;
 use std::collections::HashMap;
+#[cfg(test)]
 use std::rc::Rc;
 use thiserror::Error;
 
@@ -61,7 +63,7 @@ where
     config
 }
 
-pub struct CaptureErrorContext;
+struct CaptureErrorContext;
 
 impl ClientContext for CaptureErrorContext {}
 
@@ -93,19 +95,6 @@ pub trait Producer {
     fn send(&mut self, topic_name: &str, payload: &[u8]) -> Result<(), ClientError>;
 }
 
-pub struct DummyProducer {
-    pub messages: Rc<RefCell<Vec<(String, Vec<u8>)>>>,
-}
-
-impl Producer for DummyProducer {
-    fn send(&mut self, topic_name: &str, payload: &[u8]) -> Result<(), ClientError> {
-        self.messages
-            .borrow_mut()
-            .push((topic_name.to_string(), payload.to_vec()));
-        Ok(())
-    }
-}
-
 pub struct KafkaProducer {
     producer: ThreadedProducer<CaptureErrorContext>,
 }
@@ -127,6 +116,21 @@ impl Producer for KafkaProducer {
         self.producer
             .send(record)
             .map_err(|(error, _message)| ClientError::SendFailed(error))
+    }
+}
+
+#[cfg(test)]
+pub(crate) struct DummyProducer {
+    pub messages: Rc<RefCell<Vec<(String, Vec<u8>)>>>,
+}
+
+#[cfg(test)]
+impl Producer for DummyProducer {
+    fn send(&mut self, topic_name: &str, payload: &[u8]) -> Result<(), ClientError> {
+        self.messages
+            .borrow_mut()
+            .push((topic_name.to_string(), payload.to_vec()));
+        Ok(())
     }
 }
 
