@@ -15,6 +15,7 @@ use std::collections::HashMap;
 #[cfg(test)]
 use std::rc::Rc;
 use thiserror::Error;
+use tracing::{event, Level};
 
 /// This structure wraps the parameters to initialize a producer.
 /// This struct is there in order not to expose the rdkafka
@@ -70,9 +71,15 @@ impl ClientContext for CaptureErrorContext {}
 impl ProducerContext for CaptureErrorContext {
     type DeliveryOpaque = ();
 
-    fn delivery(&self, _: &DeliveryResult, _delivery_opaque: Self::DeliveryOpaque) {
-        // TODO: Do something useful. AS of now guarantees of delivery
-        // in this producer are not particularly critical.
+    fn delivery(&self, result: &DeliveryResult, _delivery_opaque: Self::DeliveryOpaque) {
+        match result {
+            Ok(_) => {
+                event!(Level::DEBUG, "Message produced.")
+            }
+            Err((kafka_err, _)) => {
+                event!(Level::ERROR, "Message production failed. {}", kafka_err)
+            }
+        }
     }
 }
 
