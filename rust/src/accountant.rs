@@ -1,6 +1,6 @@
 use crate::accumulator::{UsageAccumulator, UsageUnit};
 use crate::producer::{ClientError, KafkaConfig, KafkaProducer, Producer};
-use chrono::{Duration, Local};
+use chrono::{Duration, Utc};
 use serde::Serialize;
 use std::ops::Drop;
 
@@ -74,7 +74,7 @@ impl<P: Producer> UsageAccountant<P> {
         amount: u64,
         unit: UsageUnit,
     ) -> Result<(), ClientError> {
-        let current_time = Local::now();
+        let current_time = Utc::now();
         self.accumulator
             .record(current_time, resource_id, app_feature, amount, unit);
         if self.accumulator.should_flush(current_time) {
