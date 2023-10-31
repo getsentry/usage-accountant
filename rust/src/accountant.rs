@@ -1,7 +1,7 @@
 use crate::accumulator::{UsageAccumulator, UsageUnit};
 use crate::producer::{ClientError, KafkaConfig, KafkaProducer, Producer};
 use chrono::{Duration, Local};
-use serde_json::json;
+use serde::Serialize;
 use std::ops::Drop;
 
 static DEFAULT_TOPIC_NAME: &str = "shared-resources-usage";
@@ -26,27 +26,19 @@ pub struct UsageAccountant {
     topic: String,
 }
 
-impl UsageAccountant {
-    /// Instantiates a UsageAccountant from a Kafka config object.
-    /// This initialization method lets the `UsageAccountant` create
-    /// the producer and own it.
-    ///
-    /// You should very rarely change topic name or granularity.
-    pub fn new(
-        producer_config: KafkaConfig,
-        topic_name: Option<&str>,
-        granularity: Option<Duration>,
-    ) -> UsageAccountant {
-        UsageAccountant::new_with_producer(
-            Box::new(KafkaProducer::new(producer_config)),
-            topic_name,
-            granularity,
-        )
-    }
+#[derive(Serialize)]
+struct Message {
+    timestamp: i64,
+    shared_resource_id: String,
+    app_feature: String,
+    usage_unit: UsageUnit,
+    amount: u64,
+}
 
-    /// Leaves the responsibility to provide a producer to the
-    /// client. Most of the times you should not need to use this.
-    pub fn new_with_producer(
+impl UsageAccountant {
+    /// Instantiates a UsageAccountant by leaving the responsibility
+    /// to provide a producer to the client.
+    pub fn new(
         producer: Box<dyn Producer>,
         topic_name: Option<&str>,
         granularity: Option<Duration>,
@@ -58,6 +50,23 @@ impl UsageAccountant {
             producer,
             topic,
         }
+    }
+
+    /// Instantiates a UsageAccountant from a Kafka config object.
+    /// This initialization method lets the `UsageAccountant` create
+    /// the producer and own it.
+    ///
+    /// You should very rarely change topic name or granularity.
+    pub fn new_with_kafka(
+        producer_config: KafkaConfig,
+        topic_name: Option<&str>,
+        granularity: Option<Duration>,
+    ) -> UsageAccountant {
+        UsageAccountant::new(
+            Box::new(KafkaProducer::new(producer_config)),
+            topic_name,
+            granularity,
+        )
     }
 
     /// Records an mount of usage for a resource, and app_feature.
@@ -87,16 +96,17 @@ impl UsageAccountant {
     fn flush(&mut self) -> Result<(), ClientError> {
         let flushed_content = self.accumulator.flush();
         for (key, amount) in flushed_content {
-            let message = json!({
-                "timestamp": key.quantized_timestamp.timestamp(),
-                "shared_resource_id": key.resource_id,
-                "app_feature": key.app_feature,
-                "usage_unit": key.unit,
-                "amount": amount,
-            });
+            let message = Message {
+                timestamp: key.quantized_timestamp.timestamp(),
+                shared_resource_id: key.resource_id,
+                app_feature: key.app_feature,
+                usage_unit: key.unit,
+                amount,
+            };
 
-            self.producer
-                .send(self.topic.as_str(), message.to_string().as_bytes())?;
+            if let Ok(msg) = serde_json::to_string(&message) {
+                self.producer.send(self.topic.as_str(), msg.as_bytes())?;
+            }
         }
         Ok(())
     }
@@ -124,7 +134,7 @@ mod tests {
         let producer = DummyProducer {
             messages: Rc::clone(&messages),
         };
-        let mut accountant = UsageAccountant::new_with_producer(Box::new(producer), None, None);
+        let mut accountant = UsageAccountant::new(Box::new(producer), None, None);
 
         let res = accountant.flush();
         assert!(res.is_ok());
@@ -137,7 +147,7 @@ mod tests {
         let producer = DummyProducer {
             messages: Rc::clone(&messages),
         };
-        let mut accountant = UsageAccountant::new_with_producer(Box::new(producer), None, None);
+        let mut accountant = UsageAccountant::new(Box::new(producer), None, None);
 
         let res1 = accountant.record("resource_1", "transactions", 100, UsageUnit::Bytes);
         assert!(res1.is_ok());

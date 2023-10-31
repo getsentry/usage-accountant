@@ -15,7 +15,7 @@ fn main() {
     let args = Args::parse();
 
     let kafka_config = KafkaConfig::new_producer_config(args.bootstrap_server.as_str(), None);
-    let mut accountant = UsageAccountant::new(kafka_config, None, None);
+    let mut accountant = UsageAccountant::new_with_kafka(kafka_config, None, None);
 
     accountant
         .record("my_resource", "my_feature", 100, UsageUnit::Bytes)

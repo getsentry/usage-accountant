@@ -37,7 +37,7 @@
 //!     "localhost:9092",
 //!     None
 //! );
-//! let mut accountant = UsageAccountant::new(
+//! let mut accountant = UsageAccountant::new_with_kafka(
 //!    kafka_config,
 //!    None,
 //!    None,
