@@ -20,9 +20,9 @@ static DEFAULT_TOPIC_NAME: &str = "shared-resources-usage";
 /// Avoid creating a UsageAccountant every time some data needs to
 /// be recorded.
 
-pub struct UsageAccountant {
+pub struct UsageAccountant<P: Producer> {
     accumulator: UsageAccumulator,
-    producer: Box<dyn Producer>,
+    producer: P,
     topic: String,
 }
 
@@ -35,23 +35,7 @@ struct Message {
     amount: u64,
 }
 
-impl UsageAccountant {
-    /// Instantiates a UsageAccountant by leaving the responsibility
-    /// to provide a producer to the client.
-    pub fn new(
-        producer: Box<dyn Producer>,
-        topic_name: Option<&str>,
-        granularity: Option<Duration>,
-    ) -> UsageAccountant {
-        let topic = topic_name.unwrap_or(DEFAULT_TOPIC_NAME).to_string();
-
-        UsageAccountant {
-            accumulator: UsageAccumulator::new(granularity),
-            producer,
-            topic,
-        }
-    }
-
+impl UsageAccountant<KafkaProducer> {
     /// Instantiates a UsageAccountant from a Kafka config object.
     /// This initialization method lets the `UsageAccountant` create
     /// the producer and own it.
@@ -61,12 +45,22 @@ impl UsageAccountant {
         producer_config: KafkaConfig,
         topic_name: Option<&str>,
         granularity: Option<Duration>,
-    ) -> UsageAccountant {
-        UsageAccountant::new(
-            Box::new(KafkaProducer::new(producer_config)),
-            topic_name,
-            granularity,
-        )
+    ) -> UsageAccountant<KafkaProducer> {
+        UsageAccountant::new(KafkaProducer::new(producer_config), topic_name, granularity)
+    }
+}
+
+impl<P: Producer> UsageAccountant<P> {
+    /// Instantiates a UsageAccountant by leaving the responsibility
+    /// to provide a producer to the client.
+    pub fn new(producer: P, topic_name: Option<&str>, granularity: Option<Duration>) -> Self {
+        let topic = topic_name.unwrap_or(DEFAULT_TOPIC_NAME).to_string();
+
+        UsageAccountant {
+            accumulator: UsageAccumulator::new(granularity),
+            producer,
+            topic,
+        }
     }
 
     /// Records an mount of usage for a resource, and app_feature.
@@ -112,7 +106,7 @@ impl UsageAccountant {
     }
 }
 
-impl Drop for UsageAccountant {
+impl<P: Producer> Drop for UsageAccountant<P> {
     fn drop(&mut self) {
         _ = self.flush();
     }
@@ -134,7 +128,7 @@ mod tests {
         let producer = DummyProducer {
             messages: Rc::clone(&messages),
         };
-        let mut accountant = UsageAccountant::new(Box::new(producer), None, None);
+        let mut accountant = UsageAccountant::new(producer, None, None);
 
         let res = accountant.flush();
         assert!(res.is_ok());
@@ -147,7 +141,7 @@ mod tests {
         let producer = DummyProducer {
             messages: Rc::clone(&messages),
         };
-        let mut accountant = UsageAccountant::new(Box::new(producer), None, None);
+        let mut accountant = UsageAccountant::new(producer, None, None);
 
         let res1 = accountant.record("resource_1", "transactions", 100, UsageUnit::Bytes);
         assert!(res1.is_ok());
