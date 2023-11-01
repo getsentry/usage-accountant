@@ -4,7 +4,7 @@ github:
   repo: usage-accountant
 changelogPolicy: auto
 preReleaseCommand: bash ../scripts/bump-version-py.sh
-releaseBranchPrefix: release-usage-accountant
+releaseBranchPrefix: release-usage-accountant-py
 targets:
   - name: pypi
   - name: sentry-pypi
