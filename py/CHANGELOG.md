@@ -1,4 +1,13 @@
 # Changelog and versioning
+## 0.0.11
+
+### Various fixes & improvements
+
+- Fix release path (#26) by @fpacifici
+- Fix script path (#24) by @fpacifici
+- Move changelog (#23) by @fpacifici
+- feat(rust) Base implementation of the rust library (#22) by @fpacifici
+
 ## 0.0.10
 
 ### Various fixes & improvements
