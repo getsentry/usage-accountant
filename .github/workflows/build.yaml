@@ -4,7 +4,12 @@ on:
   push:
     branches:
       - main
-      - release/**
+      - release-usage-accountant-py/**
+    paths:
+      - py/**
+  pull_request:
+    paths:
+      - py/**
 
 jobs:
   dist:
