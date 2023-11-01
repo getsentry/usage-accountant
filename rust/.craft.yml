@@ -9,7 +9,7 @@ statusProvider:
 artifactProvider:
   name: github
 
-preReleaseCommand: bash ../sbin/bump-version-rust.sh
+preReleaseCommand: bash ../scripts/bump-version-rust.sh
 releaseBranchPrefix: release-usage-accountant
 targets:
   - name: crates

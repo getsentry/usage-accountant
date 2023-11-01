@@ -3,7 +3,7 @@ github:
   owner: getsentry
   repo: usage-accountant
 changelogPolicy: auto
-preReleaseCommand: bash ../sbin/bump-version-py.sh
+preReleaseCommand: bash ../scripts/bump-version-py.sh
 releaseBranchPrefix: release-usage-accountant
 targets:
   - name: pypi
