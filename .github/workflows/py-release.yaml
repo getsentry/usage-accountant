@@ -1,4 +1,4 @@
-name: Release
+name: Release Python
 
 on:
   workflow_dispatch:
@@ -19,6 +19,7 @@ jobs:
         with:
           token: ${{ secrets.GH_RELEASE_PAT }}
           fetch-depth: 0
+
       - name: Prepare release
         uses: getsentry/action-prepare-release@v1
         env:
@@ -26,3 +27,4 @@ jobs:
         with:
           version: ${{ github.event.inputs.version }}
           force: ${{ github.event.inputs.force }}
+          path: py
