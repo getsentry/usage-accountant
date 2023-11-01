@@ -1,0 +1,15 @@
+minVersion: 0.34.1
+github:
+  owner: getsentry
+  repo: usage-accountant
+changelogPolicy: auto
+
+statusProvider:
+  name: github
+artifactProvider:
+  name: github
+
+preReleaseCommand: bash ../sbin/bump-version-rust.sh
+releaseBranchPrefix: release-usage-accountant
+targets:
+  - name: crates
