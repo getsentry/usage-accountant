@@ -1,15 +1,15 @@
 repos:
   - repo: https://github.com/pycqa/isort
-    rev: 5.8.0
+    rev: 5.12.0
     hooks:
       - id: isort
         name: isort (python)
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 23.10.1
     hooks:
       - id: black
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.4.0
+    rev: v4.5.0
     hooks:
       - id: check-case-conflict
       - id: check-merge-conflict
@@ -22,12 +22,12 @@ repos:
       - id: fix-encoding-pragma
         args: ["--remove"]
   - repo: https://github.com/pycqa/flake8
-    rev: 3.8.4
+    rev: 6.1.0
     hooks:
       - id: flake8
         language_version: python3.8
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: 'v0.961'
+    rev: 'v1.6.1'
     hooks:
     -   id: mypy
         args: [--config-file, py/mypy.ini, --strict]
@@ -36,5 +36,17 @@ repos:
           sentry-arroyo==2.14.5,
         ]
         files: ^py/.+
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: 'v1.0'
+    hooks:
+      - id: fmt
+        files: ^rust/.+
+        args: ["--manifest-path", "rust/Cargo.toml", "--"]
+      - id: cargo-check
+        files: ^rust/.+
+        args: ["--manifest-path", "rust/Cargo.toml", "--"]
+      - id: clippy
+        files: ^rust/.+
+        args: ["--manifest-path", "rust/Cargo.toml", "--"]
 default_language_version:
   python: python3.8

@@ -1,0 +1,39 @@
+name: CI for the Rust crate
+on:
+  push:
+    branches:
+      - main
+      - release/**
+    paths:
+      - rust/**
+  pull_request:
+    paths:
+      - rust/**
+
+env:
+  RUSTFLAGS: -Dwarnings
+
+jobs:
+  test:
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Install rust stable toolchain
+        run: rustup toolchain install stable --profile minimal --no-self-update
+
+      - name: Cache rust cargo artifacts
+        uses: swatinem/rust-cache@v2
+
+      - name: Run cargo test
+        working-directory: ./rust
+        run: cargo test --workspace --locked

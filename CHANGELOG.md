@@ -54,4 +54,3 @@
 - Fix action (#8) by @fpacifici
 - Publish artifacts (#7) by @fpacifici
 - Add ci action (#6) by @fpacifici
-
