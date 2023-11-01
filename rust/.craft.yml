@@ -10,6 +10,6 @@ artifactProvider:
   name: github
 
 preReleaseCommand: bash ../scripts/bump-version-rust.sh
-releaseBranchPrefix: release-usage-accountant
+releaseBranchPrefix: release-usage-accountant-rust
 targets:
   - name: crates
