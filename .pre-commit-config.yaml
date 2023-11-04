@@ -36,17 +36,5 @@ repos:
           sentry-arroyo==2.14.5,
         ]
         files: ^py/.+
-  - repo: https://github.com/doublify/pre-commit-rust
-    rev: 'v1.0'
-    hooks:
-      - id: fmt
-        files: ^rust/.+
-        args: ["--manifest-path", "rust/Cargo.toml", "--"]
-      - id: cargo-check
-        files: ^rust/.+
-        args: ["--manifest-path", "rust/Cargo.toml", "--"]
-      - id: clippy
-        files: ^rust/.+
-        args: ["--manifest-path", "rust/Cargo.toml", "--"]
 default_language_version:
   python: python3.8
