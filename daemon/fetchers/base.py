@@ -1,19 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, NamedTuple
-from enum import Enum
+from typing import Dict, Any, NamedTuple, Sequence
+from usageaccountant import UsageUnit
 
 
-# TODO: figure out file layout, remove, import from accumulator
-class UsageUnit(Enum):
-    MILLISECONDS = "milliseconds"
-    BYTES = "bytes"
-    MILLISECONDS_SEC = "milliseconds_sec"
-
-
-class UsageKey(NamedTuple):
-    timestamp: int
+class Datapoint(NamedTuple):
     resource_id: str
     app_feature: str
+    amount: int
     unit: UsageUnit
 
 
@@ -22,5 +15,5 @@ class Fetcher(ABC):
         pass
 
     @abstractmethod
-    async def get(self) -> "UsageKey":
-        pass
+    async def get(self) -> Sequence[Datapoint]:
+        raise NotImplementedError

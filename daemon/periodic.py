@@ -8,8 +8,8 @@ class PeriodicRunner:
         self.queue = queue
 
     async def _run(self):
-        result = await self.obj.get()
-        await self.queue.put(result)
+        results = await self.obj.get()
+        asyncio.gather(*[self.queue.put(item) for item in results])
         await asyncio.sleep(self.interval)
         asyncio.create_task(self._run())
 

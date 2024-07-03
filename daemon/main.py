@@ -1,50 +1,49 @@
+import sys
 import argparse
 import asyncio
-import json
-from aiokafka import AIOKafkaProducer
 
 from fetchers import FetcherFactory
 from periodic import PeriodicRunner
 from config import Config
+from usageaccountant import UsageAccumulator
 
 
-async def main(
-    config_path: str, kafka_servers: str, kafka_topic: str, max_queue_size: int = 0
-):
-    cfg = Config.from_file(config_path)
+async def main(config_path: str, max_queue_size: int = 0, dry_run: bool = False):
+    config = Config.from_file(config_path)
     queue = asyncio.Queue(maxsize=max_queue_size)
     runners = []
 
-    for fcfg in cfg:
-        fetcher = FetcherFactory(fcfg["type"], **fcfg["args"])
-        runner = PeriodicRunner(fetcher, queue, fcfg["period"])
+    for fcfg in config.get_fetchers():
+        fetcher = FetcherFactory(fcfg.type, **fcfg.args)
+        runner = PeriodicRunner(fetcher, queue, fcfg.period)
         runners.append(runner)
         runner.start()
 
-    producer = AIOKafkaProducer(
-        bootstrap_servers=kafka_servers,
-        loop=asyncio.get_running_loop(),
-    )
+    try:
+        if not dry_run:
+            ua = UsageAccumulator(
+                topic_name=config.get_kafka_topic(),
+                kafka_config=config.get_kafka_config(),
+            )
+    except KeyError as e:
+        print("Configuration is invalid: ", e)
+        sys.exit(1)
 
     while item := await queue.get():
-        await producer.send(kafka_topic, json.dumps(item))
+        if dry_run:
+            print(item)
+        else:
+            ua.record(*item)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fetcher")
 
-    # Add arguments
-    parser.add_argument("--config_path", type=str, help="Path to config file")
-    parser.add_argument("--kafka_servers", type=str, help="Kafka servers")
-    parser.add_argument("--kafka_topic", type=str, help="Kafka topic name")
+    parser.add_argument("--config", type=str, help="Path to config file")
     parser.add_argument(
         "--max_queue_size", type=int, help="Maximum queue size", default=0
     )
+    parser.add_argument("--dry_run", action="store_true", help="Enable verbose mode")
 
-    # Parse arguments from command line
     args = parser.parse_args()
-    asyncio.run(
-        main(
-            args.config_path, args.kafka_servers, args.kafka_topic, args.max_queue_size
-        )
-    )
+    asyncio.run(main(args.config, args.max_queue_size, args.dry_run))
