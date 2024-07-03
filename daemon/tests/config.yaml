@@ -1,0 +1,14 @@
+kafka:
+  topic: test
+  bootstrap_servers:
+  - srv1:9092
+
+fetchers:
+- type: dummy
+  period: 1
+  args:
+    name: dummy1
+- type: dummy
+  period: 3
+  args:
+    name: dummy3
