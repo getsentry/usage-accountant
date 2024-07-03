@@ -1,4 +1,5 @@
 import sys
+import signal
 import argparse
 import asyncio
 
@@ -25,6 +26,7 @@ async def main(config_path: str, max_queue_size: int = 0, dry_run: bool = False)
                 topic_name=config.get_kafka_topic(),
                 kafka_config=config.get_kafka_config(),
             )
+            signal.signal(signal.SIGTERM, lambda: ua.flush())
     except KeyError as e:
         print("Configuration is invalid: ", e)
         sys.exit(1)
