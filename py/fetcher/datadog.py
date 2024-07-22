@@ -7,8 +7,8 @@ from urllib.request import Request, urlopen
 from usageaccountant import UsageAccumulator, UsageUnit
 
 headers = {
-    "DD-APPLICATION-KEY": "3a26d82e978617862f8996a753d9bfcd1cefd297",
-    "DD-API-KEY": "92c428d946b774db327ed1951ef00e68"
+    "DD-APPLICATION-KEY": "",
+    "DD-API-KEY": ""
 }
 
 logger = logging.getLogger("fetcher")
