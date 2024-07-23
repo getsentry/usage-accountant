@@ -2,7 +2,7 @@ import argparse
 import json
 import logging
 import urllib.parse
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from urllib.request import Request, urlopen
 
 from usageaccountant import UsageAccumulator, UsageUnit
@@ -34,8 +34,10 @@ def get(query: str, start_time: int, end_time: int) -> Any:
     Fetches timeseries data from Datadog API, returns response dict.
 
     query: Datadog query
-    start_time: Start of the time window in Unix epoch format with second-level precision
-    end_time: End of the time window in Unix epoch format with second-level precision
+    start_time: Start of the time window in Unix epoch format
+                with second-level precision
+    end_time: End of the time window in Unix epoch format
+              with second-level precision
     """
     data = {"query": query, "from": start_time, "to": end_time}
 
@@ -46,8 +48,10 @@ def get(query: str, start_time: int, end_time: int) -> Any:
     try:
         request = Request(url=full_url, headers=headers)
         # context is needed to handle
-        # ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] on macOS
-        # TODO remove next two lines and context parameter from the call to urlopen()
+        # ssl.SSLCertVerificationError:
+        # [SSL: CERTIFICATE_VERIFY_FAILED] on macOS
+        # TODO remove next two lines and
+        # context parameter from the call to urlopen()
         import ssl
 
         context = ssl.SSLContext()
@@ -72,11 +76,11 @@ def is_valid_response(response: Dict[Any, Any]) -> bool:
         raise Exception(format_exception_message(response, error_msg))
 
     if len(response.get("series", [])) == 0:
-        msg = f"No timeseries data found in response."
+        msg = "No timeseries data found in response."
         raise Exception(format_exception_message(response, msg))
 
     if len(response.get("series")[0].get("unit", [])) == 0:
-        msg = f"No unit found in response."
+        msg = "No unit found in response."
         raise Exception(format_exception_message(response, msg))
 
     # assumes all series have one and the same unit
@@ -120,14 +124,16 @@ def parse_and_post(
     response: Dict[Any, Any], usage_accumulator: UsageAccumulator
 ) -> None:
     """
-    Parses the response object and posts the data points to UsageAccountant (hence, Kafka).
+    Parses the response object and
+    posts the data points to UsageAccountant (hence, Kafka).
     Sample response:
 
     {
        "status":"ok",
        "res_type":"time_series",
        "resp_version":1,
-       "query":"avg: redis.mem.peak{app_feature: shared}by{shared_resource_id}.rollup(5)",
+       "query":"avg: redis.mem.peak{app_feature: shared}
+       by{shared_resource_id}.rollup(5)",
        "from_date":1721083881000,
        "to_date":1721083891000,
        "series":[
@@ -147,7 +153,8 @@ def parse_and_post(
              "aggr":"avg",
              "metric":"redis.mem.peak",
              "tag_set":["shared_resource_id: rc_long_redis"],
-             "expression":"avg: redis.mem.peak{shared_resource_id: rc_long_redis,app_feature: shared}.rollup(5)",
+             "expression":"avg: redis.mem.peak{shared_resource_id:
+             rc_long_redis,app_feature: shared}.rollup(5)",
              "scope":"app_feature: shared, shared_resource_id: rc_long_redis",
              "interval":5,
              "length":2,
@@ -183,8 +190,8 @@ def parse_and_post(
         ):
             exception_msg = format_exception_message(
                 response,
-                f"Required parameters, shared_resource_id and/or app_feature "
-                f"not found in series.scope of the response received.",
+                "Required parameters, shared_resource_id and/or app_feature "
+                "not found in series.scope of the response received.",
             )
             raise Exception(exception_msg)
 
@@ -208,13 +215,16 @@ def main(
 ) -> None:
     """
     query: Datadog query
-    start_time: Start of the time window in Unix epoch format with second-level precision
-    end_time: End of the time window in Unix epoch format with second-level precision
+    start_time: Start of the time window in Unix epoch format
+                with second-level precision
+    end_time: End of the time window in Unix epoch format
+              with second-level precision
     kafka_config: Parameters to initialize UsageAccumulator object
     """
     if not is_valid_query(query):
         raise Exception(
-            f"Required parameter shared_resource_id and/or app_feature not found in the query: {query}."
+            f"Required parameter shared_resource_id and/or "
+            f"app_feature not found in the query: {query}."
         )
 
     response = get(query, start_time, end_time)
