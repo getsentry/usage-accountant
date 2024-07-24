@@ -92,15 +92,7 @@ def query_datadog(query: str, start_time: int, end_time: int) -> Any:
     full_url = f"{base_url}?{query_string}"
 
     request = Request(url=full_url, headers=headers)
-    # context is needed to handle
-    # ssl.SSLCertVerificationError:
-    # [SSL: CERTIFICATE_VERIFY_FAILED] on macOS
-    # TODO remove next three lines and
-    # context parameter from the call to urlopen()
-    import ssl
-
-    context = ssl.SSLContext()
-    response = urlopen(request, context=context).read()
+    response = urlopen(request).read()
     return json.loads(response)
 
 
