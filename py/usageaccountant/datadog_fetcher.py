@@ -12,10 +12,7 @@ from usageaccountant.accumulator import (
 )
 
 # TODO fetch these from env
-headers = {
-    "DD-APPLICATION-KEY": "44f037c70a9178d5255fe5af4bf733c1c2053862",
-    "DD-API-KEY": "bfd240d1f60f0ab78f0de21e3107f091",
-}
+headers = {"DD-APPLICATION-KEY": "", "DD-API-KEY": ""}
 
 logger = logging.getLogger("fetcher")
 
