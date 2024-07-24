@@ -5,9 +5,9 @@ from unittest.mock import call, patch
 
 from typing_extensions import cast
 
-from fetcher import datadog
 from tests.test_data import datadog_response
 from usageaccountant import accumulator
+from usageaccountant import datadog_fetcher as ddf
 
 
 class TestDatadogFetcher(unittest.TestCase):
@@ -23,29 +23,25 @@ class TestDatadogFetcher(unittest.TestCase):
         sample_scope = self.good_response.get("series")[0].get(  # type: ignore
             "scope"
         )
-        returned_dict = datadog.parse_response_scope(sample_scope)
+        returned_dict = ddf.parse_response_scope(sample_scope)
         self.assertDictEqual(expected_dict, returned_dict)
 
     def test_parse_response_series_and_unit(self) -> None:
-        series_list, parsed_unit = datadog.parse_response_series_and_unit(
-            cast(datadog.DatadogResponse, self.good_response)
+        series_list, parsed_unit = ddf.parse_response_series_and_unit(
+            cast(ddf.DatadogResponse, self.good_response)
         )
         assert len(series_list) == 1
         assert isinstance(parsed_unit, accumulator.UsageUnit)
 
     def test_parse_response_series_and_unit_error(self) -> None:
         self.assertRaises(
-            Exception,
-            datadog.parse_response_series_and_unit,
-            self.bad_response,
+            Exception, ddf.parse_response_series_and_unit, self.bad_response
         )
 
     def test_parse_response_series_and_unit_no_unit(self) -> None:
         self.good_response.get("series")[0].pop("unit")  # type: ignore
         self.assertRaises(
-            Exception,
-            datadog.parse_response_series_and_unit,
-            self.good_response,
+            Exception, ddf.parse_response_series_and_unit, self.good_response
         )
 
     def test_ua_is_called(self) -> None:
@@ -70,8 +66,8 @@ class TestDatadogFetcher(unittest.TestCase):
         ]
 
         with patch.object(ua, "record") as mocked_record:
-            datadog.parse_and_post(
-                cast(List[datadog.DatadogResponseSeries], series_list),
+            ddf.parse_and_post(
+                cast(List[ddf.DatadogResponseSeries], series_list),
                 parsed_unit,
                 ua,
             )
