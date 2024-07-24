@@ -1,6 +1,7 @@
 import argparse
 import json
 import logging
+import os
 import urllib.parse
 from typing import Any, Mapping, Optional, Sequence, TextIO, Tuple, TypedDict
 from urllib.request import Request, urlopen
@@ -11,8 +12,10 @@ from usageaccountant.accumulator import (
     UsageUnit,
 )
 
-# TODO fetch these from env
-headers = {"DD-APPLICATION-KEY": "", "DD-API-KEY": ""}
+headers = {
+    "DD-APPLICATION-KEY": os.environ.get("DATADOG_APP_KEY", ""),
+    "DD-API-KEY": os.environ.get("DATADOG_API_KEY", ""),
+}
 
 logger = logging.getLogger("fetcher")
 
