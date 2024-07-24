@@ -20,9 +20,12 @@ class TestDatadogFetcher(unittest.TestCase):
             "app_feature": "shared",
             "shared_resource_id": "rc_long_redis",
         }
-        sample_scope = self.good_response.get("series")[0].get(  # type: ignore
+        sample_scope = self.good_response.get("series")[
+            0
+        ].query_datadog(  # type: ignore
             "scope"
         )
+
         returned_dict = ddf.parse_response_scope(sample_scope)
         self.assertDictEqual(expected_dict, returned_dict)
 
@@ -73,7 +76,3 @@ class TestDatadogFetcher(unittest.TestCase):
             )
 
             mocked_record.assert_has_calls(calls, any_order=True)
-
-
-if __name__ == "__main__":
-    unittest.main()

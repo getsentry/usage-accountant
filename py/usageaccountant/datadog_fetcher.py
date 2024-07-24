@@ -2,7 +2,7 @@ import argparse
 import json
 import logging
 import urllib.parse
-from typing import Any, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, Mapping, Optional, Sequence, TextIO, Tuple, TypedDict
 from urllib.request import Request, urlopen
 
 from usageaccountant.accumulator import (
@@ -12,11 +12,14 @@ from usageaccountant.accumulator import (
 )
 
 # TODO fetch these from env
-headers = {"DD-APPLICATION-KEY": "", "DD-API-KEY": ""}
+headers = {
+    "DD-APPLICATION-KEY": "44f037c70a9178d5255fe5af4bf733c1c2053862",
+    "DD-API-KEY": "bfd240d1f60f0ab78f0de21e3107f091",
+}
 
 logger = logging.getLogger("fetcher")
 
-# TODO remove this before prod
+# TODO remove handlers before prod
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -29,19 +32,33 @@ class DatadogResponseUnit(TypedDict):
     name: str
 
 
-class DatadogResponseSeries(DatadogResponseUnit):
-    unit: List[DatadogResponseUnit]
-    pointlist: List[List[float]]
+class DatadogResponseSeries(TypedDict):
+    unit: Sequence[DatadogResponseUnit]
+    pointlist: Sequence[Sequence[float]]
     scope: str
 
 
-class DatadogResponse(DatadogResponseSeries):
+class DatadogResponse(TypedDict):
     error: Optional[str]
     query: str
     from_date: int
     to_date: int
     status: str
-    series: List[DatadogResponseSeries]
+    series: Sequence[DatadogResponseSeries]
+
+
+class InvalidResponseError(Exception):
+    def __init__(self, message: str, response: Mapping[Any, Any]) -> None:
+        self.query = response.get("query")
+        self.from_date = response.get("from_date")
+        self.to_date = response.get("to_date")
+        self.message = message
+
+    def str(self) -> str:
+        return f""" {self.message}
+                    Query: {self.query},
+                    from_date: {self.from_date},
+                    to_date: {self.to_date}."""
 
 
 def is_valid_query(query: str) -> bool:
@@ -54,7 +71,7 @@ def is_valid_query(query: str) -> bool:
     return "shared_resource_id" in query and "app_feature" in query
 
 
-def get(query: str, start_time: int, end_time: int) -> Any:
+def query_datadog(query: str, start_time: int, end_time: int) -> Any:
     """
     Fetches timeseries data from Datadog API, returns response dict.
 
@@ -70,26 +87,22 @@ def get(query: str, start_time: int, end_time: int) -> Any:
     query_string = urllib.parse.urlencode(data)
     full_url = f"{base_url}?{query_string}"
 
-    try:
-        request = Request(url=full_url, headers=headers)
-        # context is needed to handle
-        # ssl.SSLCertVerificationError:
-        # [SSL: CERTIFICATE_VERIFY_FAILED] on macOS
-        # TODO remove next three lines and
-        # context parameter from the call to urlopen()
-        import ssl
+    request = Request(url=full_url, headers=headers)
+    # context is needed to handle
+    # ssl.SSLCertVerificationError:
+    # [SSL: CERTIFICATE_VERIFY_FAILED] on macOS
+    # TODO remove next three lines and
+    # context parameter from the call to urlopen()
+    import ssl
 
-        context = ssl.SSLContext()
-        response = urlopen(request, context=context).read()
-        return json.loads(response)
-
-    except Exception as e:
-        raise e
+    context = ssl.SSLContext()
+    response = urlopen(request, context=context).read()
+    return json.loads(response)
 
 
 def parse_response_series_and_unit(
-    response: DatadogResponse,
-) -> Tuple[List[DatadogResponseSeries], UsageUnit]:
+    response: Mapping[Any, Any]
+) -> Tuple[Sequence[DatadogResponseSeries], UsageUnit]:
     """
     Extracts list of series objects and unit from the API response.
 
@@ -98,7 +111,7 @@ def parse_response_series_and_unit(
 
     error_msg = response.get("error")
     if error_msg:
-        raise Exception(format_exception_message(response, error_msg))
+        raise InvalidResponseError(error_msg, response)
 
     if response.get("series") is not None:
         series_list = response.get("series", [])
@@ -106,7 +119,7 @@ def parse_response_series_and_unit(
             first_series = series_list[0]
             if first_series.get("unit") is not None:
                 unit_list = first_series.get("unit")
-                if isinstance(unit_list, List) and len(unit_list) > 0:
+                if isinstance(unit_list, Sequence) and len(unit_list) > 0:
                     first_unit = unit_list[0]
                     if first_unit.get("plural"):
                         # assumes all series have one and the same unit
@@ -114,49 +127,37 @@ def parse_response_series_and_unit(
 
     if len(series_list) == 0:
         msg = "No timeseries data found in response."
-        raise Exception(format_exception_message(response, msg))
+        raise InvalidResponseError(msg, response)
 
     if response_unit is None:
         msg = "No unit found in response."
-        raise Exception(format_exception_message(response, msg))
+        raise InvalidResponseError(msg, response)
 
     try:
         parsed_unit = UsageUnit(response_unit.lower())
     except ValueError:
-        msg = f"Unsupported unit {response_unit} received in response"
-        raise ValueError(format_exception_message(response, msg))
+        msg = f"Unsupported unit {response_unit} received in response."
+        raise InvalidResponseError(msg, response)
 
     return series_list, parsed_unit
 
 
-def format_exception_message(response: DatadogResponse, msg: str) -> str:
-    """
-    response: response received from API call
-    msg: message to be logged
-    """
-    return f""" {msg}
-    Query: {response.get("query")},
-    from_date: {response.get("from_date")},
-    to_date: {response.get("to_date")}"""
-
-
-def parse_response_scope(scope: str) -> Dict[Any, Any]:
+def parse_response_scope(scope: str) -> Mapping[str, str]:
     """
     Parses scope string of the response into a dict
     """
     param_dict = {}
     parts = scope.split(",")
     for part in parts:
-        if ":" in part:
-            sub_parts = part.split(":")
-            if len(sub_parts) == 2:
-                param_dict[sub_parts[0].strip()] = sub_parts[1].strip()
+        sub_parts = part.split(":")
+        assert len(sub_parts) == 2
+        param_dict[sub_parts[0].strip()] = sub_parts[1].strip()
 
     return param_dict
 
 
 def parse_and_post(
-    series_list: List[DatadogResponseSeries],
+    series_list: Sequence[DatadogResponseSeries],
     parsed_unit: UsageUnit,
     usage_accumulator: UsageAccumulator,
 ) -> None:
@@ -228,8 +229,8 @@ def parse_and_post(
             )
             raise Exception(exception_msg)
 
-        resource = scope_dict.get("shared_resource_id", "")
-        app_feature = scope_dict.get("app_feature", "")
+        resource = scope_dict["shared_resource_id"]
+        app_feature = scope_dict["app_feature"]
         for point in series.get("pointlist", []):
             # TODO remove this before prod
             # print(f"resource: {resource}, app_feature: {app_feature}, "
@@ -244,7 +245,10 @@ def parse_and_post(
 
 
 def main(
-    query: str, start_time: int, end_time: int, kafka_config: KafkaConfig
+    query_file: TextIO,
+    start_time: int,
+    end_time: int,
+    kafka_config: KafkaConfig,
 ) -> None:
     """
     query: Datadog query
@@ -254,23 +258,32 @@ def main(
               with second-level precision
     kafka_config: Parameters to initialize UsageAccumulator object
     """
-    if not is_valid_query(query):
-        raise Exception(
-            f"Required parameter shared_resource_id and/or "
-            f"app_feature not found in the query: {query}."
-        )
-
-    response = get(query, start_time, end_time)
-
-    series_list, parsed_unit = parse_response_series_and_unit(response)
     ua = UsageAccumulator(kafka_config=kafka_config)
-    parse_and_post(series_list, parsed_unit, ua)
+
+    for line in query_file:
+        query = line.rstrip()
+        if not is_valid_query(query):
+            raise Exception(
+                f"Required parameter shared_resource_id and/or "
+                f"app_feature not found in the query: {query}."
+            )
+
+        response = query_datadog(query, start_time, end_time)
+
+        series_list, parsed_unit = parse_response_series_and_unit(response)
+        parse_and_post(series_list, parsed_unit, ua)
+
+    ua.flush()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="fetcher")
 
-    parser.add_argument("--query", type=str, help="Datadog query string")
+    parser.add_argument(
+        "--query_file",
+        type=argparse.FileType("r"),
+        help="File containing Datadog queries, one per line",
+    )
     parser.add_argument(
         "--start_time", type=int, help="Start of the query time window"
     )
@@ -285,7 +298,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(
-        args.query,
+        args.query_file,
         args.start_time,
         args.end_time,
         json.loads(args.kafka_config),
