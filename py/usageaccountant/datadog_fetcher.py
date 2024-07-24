@@ -6,11 +6,7 @@ import urllib.parse
 from typing import Any, Mapping, Optional, Sequence, TextIO, Tuple, TypedDict
 from urllib.request import Request, urlopen
 
-from usageaccountant.accumulator import (
-    KafkaConfig,
-    UsageAccumulator,
-    UsageUnit,
-)
+from usageaccountant.accumulator import UsageAccumulator, UsageUnit
 
 headers = {
     "DD-APPLICATION-KEY": os.environ.get("DATADOG_APP_KEY", ""),
@@ -59,6 +55,16 @@ class InvalidResponseError(Exception):
                     Query: {self.query},
                     from_date: {self.from_date},
                     to_date: {self.to_date}."""
+
+
+class InvalidSeriesError(Exception):
+    def __init__(self, message: str, series: DatadogResponseSeries) -> None:
+        self.series = series
+        self.message = message
+
+    def str(self) -> str:
+        return f""" {self.message}
+                    Series: {self.series}."""
 
 
 def is_valid_query(query: str) -> bool:
@@ -224,10 +230,10 @@ def parse_and_post(
             or "app_feature" not in scope_dict.keys()
         ):
             exception_msg = (
-                f"Required parameters, shared_resource_id and/or app_feature "
-                f"not found in series.scope of the series {series} received."
+                "Required parameters, shared_resource_id and/or app_feature "
+                "not found in series.scope of the series received."
             )
-            raise Exception(exception_msg)
+            raise InvalidSeriesError(exception_msg, series)
 
         resource = scope_dict["shared_resource_id"]
         app_feature = scope_dict["app_feature"]
@@ -248,22 +254,23 @@ def main(
     query_file: TextIO,
     start_time: int,
     end_time: int,
-    kafka_config: KafkaConfig,
+    kafka_config_file: TextIO,
 ) -> None:
     """
-    query: Datadog query
+    query: File with Datadog queries, one per line
     start_time: Start of the time window in Unix epoch format
                 with second-level precision
     end_time: End of the time window in Unix epoch format
               with second-level precision
-    kafka_config: Parameters to initialize UsageAccumulator object
+    kafka_config: File with parameters to initialize UsageAccumulator object
     """
+    kafka_config = json.loads(kafka_config_file.read())
     ua = UsageAccumulator(kafka_config=kafka_config)
 
     for line in query_file:
         query = line.rstrip()
         if not is_valid_query(query):
-            raise Exception(
+            raise ValueError(
                 f"Required parameter shared_resource_id and/or "
                 f"app_feature not found in the query: {query}."
             )
@@ -291,15 +298,12 @@ if __name__ == "__main__":
         "--end_time", type=int, help="End of the query time window"
     )
     parser.add_argument(
-        "--kafka_config",
-        type=str,
-        help="Stringified kafka config to initialize UsageAccumulator",
+        "--kafka_config_file",
+        type=argparse.FileType("r"),
+        help="File containing kafka_config for initializing UsageAccumulator",
     )
     args = parser.parse_args()
 
     main(
-        args.query_file,
-        args.start_time,
-        args.end_time,
-        json.loads(args.kafka_config),
+        args.query_file, args.start_time, args.end_time, args.kafka_config_file
     )
