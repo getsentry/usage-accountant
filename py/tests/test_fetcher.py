@@ -1,6 +1,9 @@
 import copy
 import unittest
-from unittest.mock import MagicMock, call
+from typing import List
+from unittest.mock import call, patch
+
+from typing_extensions import cast
 
 from fetcher import datadog
 from tests.test_data import datadog_response
@@ -12,34 +15,45 @@ class TestDatadogFetcher(unittest.TestCase):
         self.good_response = copy.deepcopy(datadog_response.good_response)
         self.bad_response = copy.deepcopy(datadog_response.bad_response)
 
-    def test_parse_response_parameters(self) -> None:
+    def test_parse_response_scope(self) -> None:
         expected_dict = {
             "app_feature": "shared",
             "shared_resource_id": "rc_long_redis",
         }
-        sample_scope = self.good_response.get("series")[0].get("scope")
-        returned_dict = datadog.parse_response_parameters(sample_scope)
+        sample_scope = self.good_response.get("series")[0].get(  # type: ignore
+            "scope"
+        )
+        returned_dict = datadog.parse_response_scope(sample_scope)
         self.assertDictEqual(expected_dict, returned_dict)
 
-    def test_is_valid_response(self) -> None:
-        self.assertTrue(datadog.is_valid_response(self.good_response))
+    def test_parse_response_series_and_unit(self) -> None:
+        series_list, parsed_unit = datadog.parse_response_series_and_unit(
+            cast(datadog.DatadogResponse, self.good_response)
+        )
+        assert len(series_list) == 1
+        assert isinstance(parsed_unit, accumulator.UsageUnit)
 
-    def test_is_valid_response_error(self) -> None:
+    def test_parse_response_series_and_unit_error(self) -> None:
         self.assertRaises(
-            Exception, datadog.is_valid_response, self.bad_response
+            Exception,
+            datadog.parse_response_series_and_unit,
+            self.bad_response,
         )
 
-    def test_is_valid_response_no_unit(self) -> None:
-        self.good_response.get("series")[0].pop("unit")
+    def test_parse_response_series_and_unit_no_unit(self) -> None:
+        self.good_response.get("series")[0].pop("unit")  # type: ignore
         self.assertRaises(
-            Exception, datadog.is_valid_response, self.good_response
+            Exception,
+            datadog.parse_response_series_and_unit,
+            self.good_response,
         )
 
     def test_ua_is_called(self) -> None:
         kafka_config = accumulator.KafkaConfig("", {})
         ua = accumulator.UsageAccumulator(kafka_config=kafka_config)
-        ua.record = MagicMock()
-        datadog.parse_and_post(self.good_response, ua)
+        series_list = self.good_response.get("series")
+        parsed_unit = accumulator.UsageUnit.BYTES
+
         calls = [
             call(
                 resource_id="rc_long_redis",
@@ -54,7 +68,15 @@ class TestDatadogFetcher(unittest.TestCase):
                 usage_type=accumulator.UsageUnit("bytes"),
             ),
         ]
-        ua.record.assert_has_calls(calls, any_order=True)
+
+        with patch.object(ua, "record") as mocked_record:
+            datadog.parse_and_post(
+                cast(List[datadog.DatadogResponseSeries], series_list),
+                parsed_unit,
+                ua,
+            )
+
+            mocked_record.assert_has_calls(calls, any_order=True)
 
 
 if __name__ == "__main__":

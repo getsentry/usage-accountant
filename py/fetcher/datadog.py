@@ -11,6 +11,7 @@ from usageaccountant.accumulator import (
     UsageUnit,
 )
 
+# TODO fetch these from env
 headers = {"DD-APPLICATION-KEY": "", "DD-API-KEY": ""}
 
 logger = logging.getLogger("fetcher")
@@ -74,7 +75,7 @@ def get(query: str, start_time: int, end_time: int) -> Any:
         # context is needed to handle
         # ssl.SSLCertVerificationError:
         # [SSL: CERTIFICATE_VERIFY_FAILED] on macOS
-        # TODO remove next two lines and
+        # TODO remove next three lines and
         # context parameter from the call to urlopen()
         import ssl
 
@@ -231,8 +232,8 @@ def parse_and_post(
         app_feature = scope_dict.get("app_feature", "")
         for point in series.get("pointlist", []):
             # TODO remove this before prod
-            # print(f"resource: {resource}, app_feature: {app_feature},
-            # amount: {int(point[1])}, usage_type: {parsed_unit}")
+            # print(f"resource: {resource}, app_feature: {app_feature}, "
+            #       f"amount: {int(point[1])}, usage_type: {parsed_unit}")
             usage_accumulator.record(
                 resource_id=resource,
                 app_feature=app_feature,
@@ -282,6 +283,10 @@ if __name__ == "__main__":
         help="Stringified kafka config to initialize UsageAccumulator",
     )
     args = parser.parse_args()
-    kafka_args = json.loads(args.kafka_config)
 
-    main(args.query, args.start_time, args.end_time, kafka_args)
+    main(
+        args.query,
+        args.start_time,
+        args.end_time,
+        json.loads(args.kafka_config),
+    )
