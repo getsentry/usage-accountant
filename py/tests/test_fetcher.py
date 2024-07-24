@@ -20,9 +20,7 @@ class TestDatadogFetcher(unittest.TestCase):
             "app_feature": "shared",
             "shared_resource_id": "rc_long_redis",
         }
-        sample_scope = self.good_response.get("series")[
-            0
-        ].query_datadog(  # type: ignore
+        sample_scope = self.good_response.get("series")[0].get(  # type: ignore
             "scope"
         )
 
