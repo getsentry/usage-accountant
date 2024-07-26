@@ -326,6 +326,7 @@ def main(
 
     is_valid_query_file(query_file)
     query_list = json.loads(query_file.read())
+    record_list = []
     for query_dict in query_list:
         query, unit = query_dict.get("query"), query_dict.get("unit")
 
@@ -333,9 +334,9 @@ def main(
             response = query_datadog(query, start_time, end_time)
             series_list = parse_response_series(response)
             usage_unit = UsageUnit(unit.lower())
-            record_list = process_series_data(series_list, usage_unit)
-            post_to_usage_accumulator(record_list, usage_accumulator)
+            record_list.extend(process_series_data(series_list, usage_unit))
 
+    post_to_usage_accumulator(record_list, usage_accumulator)
     usage_accumulator.flush()
 
 
