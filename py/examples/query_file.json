@@ -1,0 +1,9 @@
+[
+  {
+    "query": "avg:redis.mem.peak{app_feature:shared} by {shared_resource_id}.rollup(5)",
+    "unit": "bytes"
+  }, {
+    "query": "avg:redis.cpu.user{app_feature:shared} by {shared_resource_id}",
+    "unit": "milliseconds"
+  }
+]

@@ -55,3 +55,15 @@ bad_response = {
     "error": "Invalidqueryinput: \nqueryendisbeforestart",
     "group_by": ["shared_resource_id"],
 }
+
+processed_response = {
+    "series": [
+        {
+            "scope_dict": {
+                "app_feature": "shared",
+                "shared_resource_id": "rc_long_redis",
+            },
+            "pointlist": [[1721083885000.0, 2.5], [1721083890000.0, 3.6]],
+        }
+    ]
+}

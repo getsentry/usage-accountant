@@ -1,0 +1,9 @@
+{
+  "bootstrap_servers": [
+    "kafka-events.service.asia-east3.consul.:9092"
+  ],
+  "config_params": {
+    "compression.type": "lz4",
+    "message.max.bytes": 10000000
+  }
+}
