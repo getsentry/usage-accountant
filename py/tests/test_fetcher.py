@@ -2,6 +2,7 @@ import copy
 import os
 import unittest
 from io import StringIO
+from unittest.mock import Mock, call, patch
 
 from typing_extensions import Mapping, Sequence, cast
 
@@ -131,3 +132,76 @@ class TestDatadogFetcher(unittest.TestCase):
             ),
             expected_record_list,
         )
+
+    @patch("usageaccountant.datadog_fetcher.query_datadog")
+    @patch("usageaccountant.accumulator.UsageAccumulator.__init__")
+    @patch("usageaccountant.accumulator.UsageAccumulator.record")
+    @patch("usageaccountant.accumulator.UsageAccumulator.flush")
+    def test_main(
+        self,
+        mock_flush: Mock,
+        mock_record: Mock,
+        mock_ua: Mock,
+        mock_query_dd: Mock,
+    ) -> None:
+        mock_query_dd.return_value = self.good_response
+        mock_ua.return_value = None
+        ddf.main(
+            query_file=StringIO(read_data_file("query.json")),
+            start_time=1,
+            end_time=2,
+            kafka_config_file=StringIO(read_data_file("kafka.json")),
+        )
+        calls = [
+            call(
+                resource_id="rc_long_redis",
+                app_feature="shared",
+                amount=2,
+                usage_type=accumulator.UsageUnit("bytes"),
+            ),
+            call(
+                resource_id="rc_long_redis",
+                app_feature="shared",
+                amount=3,
+                usage_type=accumulator.UsageUnit("bytes"),
+            ),
+        ]
+        mock_record.assert_has_calls(calls, any_order=True)
+
+    @patch("usageaccountant.datadog_fetcher.query_datadog")
+    @patch("usageaccountant.accumulator.UsageAccumulator.__init__")
+    @patch("usageaccountant.accumulator.UsageAccumulator.record")
+    @patch("usageaccountant.accumulator.UsageAccumulator.flush")
+    def test_main_no_unit(
+        self,
+        mock_flush: Mock,
+        mock_record: Mock,
+        mock_ua: Mock,
+        mock_query_dd: Mock,
+    ) -> None:
+        mock_query_dd.return_value = self.good_response
+        mock_ua.return_value = None
+        ddf.main(
+            query_file=StringIO(
+                '[{"query": "avg:redis.mem.peak{app_feature:shared} '
+                'by {shared_resource_id}.rollup(5)"}]'
+            ),
+            start_time=1,
+            end_time=2,
+            kafka_config_file=StringIO(read_data_file("kafka.json")),
+        )
+        calls = [
+            call(
+                resource_id="rc_long_redis",
+                app_feature="shared",
+                amount=2,
+                usage_type=accumulator.UsageUnit("bytes"),
+            ),
+            call(
+                resource_id="rc_long_redis",
+                app_feature="shared",
+                amount=3,
+                usage_type=accumulator.UsageUnit("bytes"),
+            ),
+        ]
+        mock_record.assert_has_calls(calls, any_order=True)
