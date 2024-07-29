@@ -41,8 +41,7 @@ class TestDatadogFetcher(unittest.TestCase):
 
     def test_parse_and_assert_kafka_config_no_config_params(self) -> None:
         kafka_io = StringIO(
-            '{"bootstrap_servers": '
-            '["kafka-events.service.asia-east3.consul.:9092"]}'
+            '{"bootstrap_servers": ["kafka.service.host:1234"]}'
         )
         self.assertRaises(
             AssertionError, ddf.parse_and_assert_kafka_config, kafka_io

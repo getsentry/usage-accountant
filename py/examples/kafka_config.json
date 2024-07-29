@@ -1,6 +1,6 @@
 {
   "bootstrap_servers": [
-    "kafka-events.service.asia-east3.consul.:9092"
+    "kafka.service.host:1234"
   ],
   "config_params": {
     "compression.type": "lz4",
