@@ -1,5 +1,4 @@
 import copy
-import os
 import unittest
 from io import StringIO
 from unittest.mock import Mock, call, patch
@@ -11,14 +10,18 @@ from usageaccountant import accumulator
 from usageaccountant import datadog_fetcher as ddf
 
 
-def read_data_file(filename: str) -> str:
-    tests_dir = os.path.dirname(os.path.abspath(__file__))
-    query_file_path = os.path.join(tests_dir, "test_data", filename)
-    with open(query_file_path, "r") as file:
-        return file.read()
-
-
 class TestDatadogFetcher(unittest.TestCase):
+    query_str = (
+        '[{"query": "sum:zookeeper.bytes_received{*} '
+        'by {app_feature,shared_resource_id}","unit": "bytes"}]'
+    )
+    kafka_config_str = (
+        '{"bootstrap_servers": ["kafka.service.host:1234"],'
+        '"config_params": '
+        '{"compression.type": "lz4",'
+        '"message.max.bytes": 10}}'
+    )
+
     def setUp(self) -> None:
         self.good_response = copy.deepcopy(datadog_response.good_response)
         self.bad_response = copy.deepcopy(datadog_response.bad_response)
@@ -27,7 +30,7 @@ class TestDatadogFetcher(unittest.TestCase):
         )
 
     def test_parse_and_assert_query_file(self) -> None:
-        query_io = StringIO(read_data_file("query.json"))
+        query_io = StringIO(self.query_str)
         assert ddf.parse_and_assert_query_file(query_io)
 
     def test_parse_and_assert_query_file_no_query(self) -> None:
@@ -37,7 +40,7 @@ class TestDatadogFetcher(unittest.TestCase):
         )
 
     def test_parse_and_assert_kafka_config(self) -> None:
-        kafka_io = StringIO(read_data_file("kafka.json"))
+        kafka_io = StringIO(self.kafka_config_str)
         ddf.parse_and_assert_kafka_config(kafka_io)
 
     def test_parse_and_assert_kafka_config_no_config_params(self) -> None:
@@ -147,10 +150,10 @@ class TestDatadogFetcher(unittest.TestCase):
         mock_query_dd.return_value = self.good_response
         mock_ua.return_value = None
         ddf.main(
-            query_file=StringIO(read_data_file("query.json")),
+            query_file=StringIO(self.query_str),
             start_time=1,
-            end_time=2,
-            kafka_config_file=StringIO(read_data_file("kafka.json")),
+            period_seconds=2,
+            kafka_config_file=StringIO(self.kafka_config_str),
         )
         calls = [
             call(
@@ -187,8 +190,8 @@ class TestDatadogFetcher(unittest.TestCase):
                 'by {shared_resource_id}.rollup(5)"}]'
             ),
             start_time=1,
-            end_time=2,
-            kafka_config_file=StringIO(read_data_file("kafka.json")),
+            period_seconds=2,
+            kafka_config_file=StringIO(self.kafka_config_str),
         )
         calls = [
             call(

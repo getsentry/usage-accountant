@@ -1,9 +1,6 @@
 [
   {
-    "query": "avg:redis.mem.peak{app_feature:shared} by {shared_resource_id}.rollup(5)",
+    "query": "sum:zookeeper.bytes_received{*} by {app_feature,shared_resource_id}",
     "unit": "bytes"
-  }, {
-    "query": "avg:redis.cpu.user{app_feature:shared} by {shared_resource_id}",
-    "unit": "milliseconds"
   }
 ]

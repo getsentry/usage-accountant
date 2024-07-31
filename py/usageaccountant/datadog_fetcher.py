@@ -12,6 +12,7 @@ from typing import (
     Optional,
     Sequence,
     TextIO,
+    Tuple,
     TypedDict,
     cast,
 )
@@ -40,7 +41,7 @@ class DatadogResponseUnit(TypedDict):
 
 
 class DatadogResponseSeries(TypedDict):
-    unit: Sequence[DatadogResponseUnit]
+    unit: Optional[Tuple[DatadogResponseUnit, DatadogResponseUnit]]
     pointlist: Sequence[Sequence[float]]
     scope: str
     scope_dict: Mapping[str, str]
@@ -118,7 +119,7 @@ def assert_valid_unit(unit: str) -> None:
     UsageUnit(unit.lower())
 
 
-def parse_and_assert_unit(series_list: Sequence[DatadogResponseSeries]) -> str:
+def parse_and_assert_unit(series_list: Sequence[DatadogResponseSeries]) -> Any:
     """
     Extracts unit from a DatadogResponseSeries object.
     """
@@ -127,9 +128,9 @@ def parse_and_assert_unit(series_list: Sequence[DatadogResponseSeries]) -> str:
     assert "unit" in series_list[0]
 
     unit_list = series_list[0]["unit"]
-    assert isinstance(unit_list, Sequence)
+    assert isinstance(unit_list, Sequence) and len(unit_list) > 0
 
-    unit_dict = unit_list[0]
+    unit_dict = unit_list[0]  # type: ignore
     assert isinstance(unit_dict, Mapping)
     assert "plural" in unit_dict
 
@@ -155,7 +156,7 @@ def warn_multiple_units(series_list: Sequence[DatadogResponseSeries]) -> None:
     Warns if multiple units are received from Datadog API.
     """
     unit_list = series_list[0]["unit"]
-    if unit_list[1] is not None:
+    if unit_list and unit_list[1] is not None:
         logger.warning(f"Received multiple units from Datadog: {unit_list}.")
 
 
@@ -332,7 +333,7 @@ def post_to_usage_accumulator(
 def main(
     query_file: TextIO,
     start_time: int,
-    end_time: int,
+    period_seconds: int,
     kafka_config_file: TextIO,
 ) -> None:
     """
@@ -340,8 +341,7 @@ def main(
                 each containing a Datadog query and unit
     start_time: Start of the time window in Unix epoch format
                 with second-level precision
-    end_time: End of the time window in Unix epoch format
-              with second-level precision
+    period_seconds: Duration of the time window in seconds
     kafka_config_file: File with parameters to initialize
                        UsageAccumulator object
     """
@@ -354,14 +354,22 @@ def main(
         query, configured_unit = query_dict["query"], query_dict.get("unit")
         assert_valid_query(query)
 
-        response = query_datadog(query, start_time, end_time)
+        response = query_datadog(
+            query, start_time, (start_time + period_seconds)
+        )
         series_list = parse_and_assert_response_series(response)
 
-        parsed_unit = parse_and_assert_unit(series_list)
         if configured_unit:
+            # need not raise an error if a unit is configured
+            try:
+                parsed_unit = parse_and_assert_unit(series_list)
+            except AssertionError:
+                parsed_unit = ""
+
             warn_different_configured_and_dd_unit(configured_unit, parsed_unit)
             unit = configured_unit
         else:
+            parsed_unit = parse_and_assert_unit(series_list)
             unit = parsed_unit
 
         assert_valid_unit(unit)
@@ -385,9 +393,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--start_time", type=int, help="Start of the query time window"
     )
-    parser.add_argument(
-        "--end_time", type=int, help="End of the query time window"
-    )
+    parser.add_argument("--period_seconds", type=int, help="Period in seconds")
     parser.add_argument(
         "--kafka_config_file",
         type=argparse.FileType("r"),
@@ -396,5 +402,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(
-        args.query_file, args.start_time, args.end_time, args.kafka_config_file
+        args.query_file,
+        args.start_time,
+        args.period_seconds,
+        args.kafka_config_file,
     )
