@@ -179,8 +179,8 @@ class UsageAccumulator:
 
     def flush(self) -> None:
         """
-        This method is blocking and it forces the api to flush
-        data accumulated to Kafka.
+        This method is blocking, and it forces the api to flush
+        accumulated data to Kafka.
 
         This method is supposed to be used when we are shutting
         down the program that was accumulating data.

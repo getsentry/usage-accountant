@@ -1,0 +1,9 @@
+{
+  "bootstrap_servers": [
+    "kafka.service.host:1234"
+  ],
+  "config_params": {
+    "compression.type": "lz4",
+    "message.max.bytes": 10000000
+  }
+}

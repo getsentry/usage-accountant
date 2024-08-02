@@ -1,0 +1,6 @@
+[
+  {
+    "query": "sum:zookeeper.bytes_received{*} by {app_feature,shared_resource_id}",
+    "unit": "bytes"
+  }
+]
