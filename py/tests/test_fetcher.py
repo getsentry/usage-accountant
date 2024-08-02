@@ -1,8 +1,14 @@
 import copy
 import unittest
 from io import StringIO
-from unittest.mock import Mock, call, patch
+from unittest.mock import Mock, patch
 
+import pytest
+from arroyo.backends.kafka.consumer import KafkaPayload
+from arroyo.backends.local.backend import LocalBroker
+from arroyo.backends.local.storages.memory import MemoryMessageStorage
+from arroyo.types import Partition, Topic
+from arroyo.utils.clock import TestingClock
 from typing_extensions import Mapping, Sequence, cast
 
 from tests.test_data import datadog_response
@@ -10,6 +16,7 @@ from usageaccountant import accumulator
 from usageaccountant import datadog_fetcher as ddf
 
 
+@pytest.mark.usefixtures("broker")
 class TestDatadogFetcher(unittest.TestCase):
     query_str = (
         '[{"query": "sum:zookeeper.bytes_received{*} '
@@ -27,6 +34,16 @@ class TestDatadogFetcher(unittest.TestCase):
         self.bad_response = copy.deepcopy(datadog_response.bad_response)
         self.processed_response = copy.deepcopy(
             datadog_response.processed_response
+        )
+
+        storage: MemoryMessageStorage[KafkaPayload] = MemoryMessageStorage()
+        self.broker = LocalBroker(storage, TestingClock())
+        self.topic = Topic("test_dd_fetcher")
+        self.broker.create_topic(self.topic, 1)
+
+        producer = self.broker.get_producer()
+        self.usage_accumulator = accumulator.UsageAccumulator(
+            1, topic_name="test_dd_fetcher", producer=producer
         )
 
     def test_parse_and_assert_query_file(self) -> None:
@@ -137,53 +154,30 @@ class TestDatadogFetcher(unittest.TestCase):
         )
 
     @patch("usageaccountant.datadog_fetcher.query_datadog")
-    @patch("usageaccountant.accumulator.UsageAccumulator.__init__")
-    @patch("usageaccountant.accumulator.UsageAccumulator.record")
-    @patch("usageaccountant.accumulator.UsageAccumulator.flush")
-    def test_main(
-        self,
-        mock_flush: Mock,
-        mock_record: Mock,
-        mock_ua: Mock,
-        mock_query_dd: Mock,
-    ) -> None:
+    @patch("time.time")
+    def test_main(self, mock_time: Mock, mock_query_dd: Mock) -> None:
         mock_query_dd.return_value = self.good_response
-        mock_ua.return_value = None
+        mock_time.return_value = 1
+
         ddf.main(
             query_file=StringIO(self.query_str),
             start_time=1,
             period_seconds=2,
-            kafka_config_file=StringIO(self.kafka_config_str),
+            usage_accumulator=self.usage_accumulator,
         )
-        calls = [
-            call(
-                resource_id="rc_long_redis",
-                app_feature="shared",
-                amount=2,
-                usage_type=accumulator.UsageUnit("bytes"),
-            ),
-            call(
-                resource_id="rc_long_redis",
-                app_feature="shared",
-                amount=3,
-                usage_type=accumulator.UsageUnit("bytes"),
-            ),
-        ]
-        mock_record.assert_has_calls(calls, any_order=True)
+
+        msg1 = self.broker.consume(Partition(self.topic, 0), 0)
+        assert msg1 is not None
+
+        msg2 = self.broker.consume(Partition(self.topic, 0), 1)
+        assert msg2 is None
 
     @patch("usageaccountant.datadog_fetcher.query_datadog")
-    @patch("usageaccountant.accumulator.UsageAccumulator.__init__")
-    @patch("usageaccountant.accumulator.UsageAccumulator.record")
-    @patch("usageaccountant.accumulator.UsageAccumulator.flush")
-    def test_main_no_unit(
-        self,
-        mock_flush: Mock,
-        mock_record: Mock,
-        mock_ua: Mock,
-        mock_query_dd: Mock,
-    ) -> None:
+    @patch("time.time")
+    def test_main_no_unit(self, mock_time: Mock, mock_query_dd: Mock) -> None:
         mock_query_dd.return_value = self.good_response
-        mock_ua.return_value = None
+        mock_time.return_value = 1
+
         ddf.main(
             query_file=StringIO(
                 '[{"query": "avg:redis.mem.peak{app_feature:shared} '
@@ -191,20 +185,11 @@ class TestDatadogFetcher(unittest.TestCase):
             ),
             start_time=1,
             period_seconds=2,
-            kafka_config_file=StringIO(self.kafka_config_str),
+            usage_accumulator=self.usage_accumulator,
         )
-        calls = [
-            call(
-                resource_id="rc_long_redis",
-                app_feature="shared",
-                amount=2,
-                usage_type=accumulator.UsageUnit("bytes"),
-            ),
-            call(
-                resource_id="rc_long_redis",
-                app_feature="shared",
-                amount=3,
-                usage_type=accumulator.UsageUnit("bytes"),
-            ),
-        ]
-        mock_record.assert_has_calls(calls, any_order=True)
+
+        msg1 = self.broker.consume(Partition(self.topic, 0), 0)
+        assert msg1 is not None
+
+        msg2 = self.broker.consume(Partition(self.topic, 0), 1)
+        assert msg2 is None

@@ -130,7 +130,7 @@ def parse_and_assert_unit(series_list: Sequence[DatadogResponseSeries]) -> Any:
     unit_list = series_list[0]["unit"]
     assert isinstance(unit_list, Sequence) and len(unit_list) > 0
 
-    unit_dict = unit_list[0]  # type: ignore
+    unit_dict = unit_list[0]
     assert isinstance(unit_dict, Mapping)
     assert "plural" in unit_dict
 
@@ -317,11 +317,6 @@ def post_to_usage_accumulator(
     Posts UsageAccumulatorRecords to UsageAccumulator.
     """
     for record in record_list:
-        # TODO remove this before prod
-        # print(f"resource: {record.resource_id}, "
-        #       f"app_feature: {record.app_feature}, "
-        #       f"amount: {record.amount}, "
-        #       f"usage_type: {record.usage_type}")
         usage_accumulator.record(
             resource_id=record.resource_id,
             app_feature=record.app_feature,
@@ -334,7 +329,7 @@ def main(
     query_file: TextIO,
     start_time: int,
     period_seconds: int,
-    kafka_config_file: TextIO,
+    usage_accumulator: UsageAccumulator,
 ) -> None:
     """
     query_file: File with a list of dictionaries,
@@ -342,12 +337,8 @@ def main(
     start_time: Start of the time window in Unix epoch format
                 with second-level precision
     period_seconds: Duration of the time window in seconds
-    kafka_config_file: File with parameters to initialize
-                       UsageAccumulator object
+    usage_accumulator: UsageAccumulator object
     """
-    kafka_config = parse_and_assert_kafka_config(kafka_config_file)
-    usage_accumulator = UsageAccumulator(kafka_config=kafka_config)
-
     query_list = parse_and_assert_query_file(query_file)
     record_list: List[UsageAccumulatorRecord] = []
     for query_dict in query_list:
@@ -401,9 +392,11 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    kafka_config = parse_and_assert_kafka_config(args.kafka_config_file)
+
     main(
         args.query_file,
         args.start_time,
         args.period_seconds,
-        args.kafka_config_file,
+        UsageAccumulator(kafka_config=kafka_config),
     )
