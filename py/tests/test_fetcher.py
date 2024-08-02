@@ -3,7 +3,6 @@ import unittest
 from io import StringIO
 from unittest.mock import Mock, patch
 
-import pytest
 from arroyo.backends.kafka.consumer import KafkaPayload
 from arroyo.backends.local.backend import LocalBroker
 from arroyo.backends.local.storages.memory import MemoryMessageStorage
@@ -16,7 +15,6 @@ from usageaccountant import accumulator
 from usageaccountant import datadog_fetcher as ddf
 
 
-@pytest.mark.usefixtures("broker")
 class TestDatadogFetcher(unittest.TestCase):
     query_str = (
         '[{"query": "sum:zookeeper.bytes_received{*} '
