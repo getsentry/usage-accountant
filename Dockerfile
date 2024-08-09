@@ -1,7 +1,14 @@
-FROM python:3.8-alpine
+FROM python:3.11-slim as application
 
-RUN apt-get update && apt-get install -y git && apt-get clean
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc
+
+COPY . /app/
 
 WORKDIR /app
 
-RUN git clone https://github.com/getsentry/usage-accountant.git .
+RUN pip install -e py
+
+WORKDIR /app/py
+
+ENTRYPOINT ["python", "-m", "usageaccountant.datadog_fetcher"]

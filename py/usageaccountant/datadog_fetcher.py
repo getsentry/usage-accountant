@@ -325,11 +325,25 @@ def post_to_usage_accumulator(
         )
 
 
+def log_records(record_list: Sequence[UsageAccumulatorRecord]) -> None:
+    """
+    Logs UsageAccumulatorRecords.
+    """
+    for record in record_list:
+        logger.info(
+            f"resource_id: {record.resource_id}, "
+            f"app_feature: {record.app_feature}, "
+            f"amount: {record.amount}, "
+            f"usage_type: {record.usage_type}."
+        )
+
+
 def main(
     query_file: TextIO,
     start_time: int,
     period_seconds: int,
     usage_accumulator: UsageAccumulator,
+    dry_run: bool,
 ) -> None:
     """
     query_file: File with a list of dictionaries,
@@ -369,8 +383,11 @@ def main(
 
         record_list.extend(process_series_data(series_list, usage_unit))
 
-    post_to_usage_accumulator(record_list, usage_accumulator)
-    usage_accumulator.flush()
+    if dry_run:
+        log_records(record_list)
+    else:
+        post_to_usage_accumulator(record_list, usage_accumulator)
+        usage_accumulator.flush()
 
 
 if __name__ == "__main__":
@@ -382,7 +399,11 @@ if __name__ == "__main__":
         help="JSON file containing Datadog queries and units",
     )
     parser.add_argument(
-        "--start_time", type=int, help="Start of the query time window"
+        "--start_time",
+        type=int,
+        help="Start of the query time window; "
+        "defaults to now() minus period_seconds",
+        required=False,
     )
     parser.add_argument("--period_seconds", type=int, help="Period in seconds")
     parser.add_argument(
@@ -390,7 +411,17 @@ if __name__ == "__main__":
         type=argparse.FileType("r"),
         help="File containing kafka_config for initializing UsageAccumulator",
     )
+    parser.add_argument(
+        "--dry_run",
+        action="store_true",
+        help="Log data instead of sending it to Kafka",
+    )
     args = parser.parse_args()
+
+    if args.start_time is None:
+        import time
+
+        args.start_time = int(time.time()) - args.period_seconds
 
     kafka_config = parse_and_assert_kafka_config(args.kafka_config_file)
 
@@ -399,4 +430,5 @@ if __name__ == "__main__":
         args.start_time,
         args.period_seconds,
         UsageAccumulator(kafka_config=kafka_config),
+        args.dry_run,
     )

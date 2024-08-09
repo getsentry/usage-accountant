@@ -162,6 +162,7 @@ class TestDatadogFetcher(unittest.TestCase):
             start_time=1,
             period_seconds=2,
             usage_accumulator=self.usage_accumulator,
+            dry_run=False,
         )
 
         msg1 = self.broker.consume(Partition(self.topic, 0), 0)
@@ -184,6 +185,7 @@ class TestDatadogFetcher(unittest.TestCase):
             start_time=1,
             period_seconds=2,
             usage_accumulator=self.usage_accumulator,
+            dry_run=False,
         )
 
         msg1 = self.broker.consume(Partition(self.topic, 0), 0)
