@@ -3,7 +3,6 @@ steps:
   args: [
     'build',
     '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage_accountant/image:$COMMIT_SHA',
-    '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage_accountant/image:latest',
     '--build-arg',
     'VERSION=$COMMIT_SHA',
     '--build-arg',
@@ -18,7 +17,7 @@ steps:
   args:
     - '-c'
     - |
-      # Only push "latest" tag when building on "main"
+      # Push "latest" tag only when building on "main"
       [ "$BRANCH_NAME" != "main" ] && exit 0
       docker push us-central1-docker.pkg.dev/$PROJECT_ID/usage_accountant/image:latest
 
