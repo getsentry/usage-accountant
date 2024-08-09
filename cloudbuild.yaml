@@ -3,8 +3,7 @@ steps:
   args: [
     'build',
     '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage_accountant/image:$COMMIT_SHA',
-    '--build-arg',
-    'VERSION=$COMMIT_SHA',
+    '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage_accountant/image:latest',
     '--build-arg',
     'BUILDKIT_INLINE_CACHE=1',
     '--cache-from', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage_accountant/image:latest',
