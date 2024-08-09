@@ -402,7 +402,7 @@ if __name__ == "__main__":
         "--start_time",
         type=int,
         help="Start of the query time window; "
-        "defaults to now() minus period_seconds",
+        "defaults to now() quantized per period_seconds minus period_seconds",
         required=False,
     )
     parser.add_argument("--period_seconds", type=int, help="Period in seconds")
@@ -421,7 +421,12 @@ if __name__ == "__main__":
     if args.start_time is None:
         import time
 
-        args.start_time = int(time.time()) - args.period_seconds
+        current_time = int(time.time())
+        args.start_time = (
+            current_time
+            - (current_time % args.period_seconds)
+            - args.period_seconds
+        )
 
     kafka_config = parse_and_assert_kafka_config(args.kafka_config_file)
 
