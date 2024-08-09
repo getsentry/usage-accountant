@@ -2,11 +2,11 @@ steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: [
     'build',
-    '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage_accountant/image:$COMMIT_SHA',
-    '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage_accountant/image:latest',
+    '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage-accountant/image:$COMMIT_SHA',
+    '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage-accountant/image:latest',
     '--build-arg',
     'BUILDKIT_INLINE_CACHE=1',
-    '--cache-from', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage_accountant/image:latest',
+    '--cache-from', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage-accountant/image:latest',
     '.',
   ]
   env: [DOCKER_BUILDKIT=1]
@@ -18,9 +18,9 @@ steps:
     - |
       # Push "latest" tag only when building on "main"
       [ "$BRANCH_NAME" != "main" ] && exit 0
-      docker push us-central1-docker.pkg.dev/$PROJECT_ID/usage_accountant/image:latest
+      docker push us-central1-docker.pkg.dev/$PROJECT_ID/usage-accountant/image:latest
 
 images: [
-  'us-central1-docker.pkg.dev/$PROJECT_ID/usage_accountant/image:$COMMIT_SHA',
+  'us-central1-docker.pkg.dev/$PROJECT_ID/usage-accountant/image:$COMMIT_SHA',
 ]
 timeout: 180s
