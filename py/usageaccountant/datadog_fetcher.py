@@ -294,18 +294,17 @@ def process_series_data(
     for series in series_list:
         app_feature = series["scope_dict"]["app_feature"]
         for point in series["pointlist"]:
-            try:
-                record = UsageAccumulatorRecord(
-                    resource_id=shared_resource_id,
-                    app_feature=app_feature,
-                    # point[0] is the timestamp
-                    amount=int(point[1]),
-                    usage_type=parsed_unit,
+            # skip records where there's no data recorded by Datadog
+            if point[1] is not None:
+                record_list.append(
+                    UsageAccumulatorRecord(
+                        resource_id=shared_resource_id,
+                        app_feature=app_feature,
+                        # point[0] is the timestamp
+                        amount=int(point[1]),
+                        usage_type=parsed_unit,
+                    )
                 )
-            except TypeError as e:
-                logger.warning(e, exc_info=True)
-                continue
-            record_list.append(record)
 
     return record_list
 

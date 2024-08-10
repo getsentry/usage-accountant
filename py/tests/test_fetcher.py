@@ -166,20 +166,17 @@ class TestDatadogFetcher(unittest.TestCase):
             )
         ]
 
-        with self.assertLogs("fetcher") as cm:
-            self.assertEqual(
-                ddf.process_series_data(
-                    cast(
-                        Sequence[ddf.DatadogResponseSeries],
-                        self.processed_response_with_none["series"],
-                    ),
-                    accumulator.UsageUnit.BYTES,
-                    "rc_long_redis",
+        self.assertEqual(
+            ddf.process_series_data(
+                cast(
+                    Sequence[ddf.DatadogResponseSeries],
+                    self.processed_response_with_none["series"],
                 ),
-                expected_record_list,
-            )
-
-            assert len(cm.output) == 1
+                accumulator.UsageUnit.BYTES,
+                "rc_long_redis",
+            ),
+            expected_record_list,
+        )
 
     @patch("usageaccountant.datadog_fetcher.query_datadog")
     @patch("time.time")
