@@ -1,6 +1,6 @@
 [
   {
-    "query": "sum:zookeeper.bytes_received{*} by {app_feature,shared_resource_id}",
+    "query": "sum:zookeeper.bytes_received{*} by {app_feature}",
     "unit": "bytes",
     "shared_resource_id": "relay"
   }
