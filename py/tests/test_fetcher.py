@@ -34,6 +34,9 @@ class TestDatadogFetcher(unittest.TestCase):
         self.processed_response = copy.deepcopy(
             datadog_response.processed_response
         )
+        self.processed_response_with_none = copy.deepcopy(
+            datadog_response.processed_response_with_none
+        )
 
         storage: MemoryMessageStorage[KafkaPayload] = MemoryMessageStorage()
         self.broker = LocalBroker(storage, TestingClock())
@@ -152,6 +155,31 @@ class TestDatadogFetcher(unittest.TestCase):
             ),
             expected_record_list,
         )
+
+    def test_process_series_data_with_none(self) -> None:
+        expected_record_list = [
+            ddf.UsageAccumulatorRecord(
+                resource_id="rc_long_redis",
+                app_feature="shared",
+                amount=2,
+                usage_type=accumulator.UsageUnit.BYTES,
+            )
+        ]
+
+        with self.assertLogs("fetcher") as cm:
+            self.assertEqual(
+                ddf.process_series_data(
+                    cast(
+                        Sequence[ddf.DatadogResponseSeries],
+                        self.processed_response_with_none["series"],
+                    ),
+                    accumulator.UsageUnit.BYTES,
+                    "rc_long_redis",
+                ),
+                expected_record_list,
+            )
+
+            assert len(cm.output) == 1
 
     @patch("usageaccountant.datadog_fetcher.query_datadog")
     @patch("time.time")

@@ -67,3 +67,15 @@ processed_response = {
         }
     ]
 }
+
+processed_response_with_none = {
+    "series": [
+        {
+            "scope_dict": {
+                "app_feature": "shared",
+                "shared_resource_id": "rc_long_redis",
+            },
+            "pointlist": [[1721083885000.0, 2.5], [1721083890000.0, None]],
+        }
+    ]
+}
