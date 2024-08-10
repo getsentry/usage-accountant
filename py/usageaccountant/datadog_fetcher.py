@@ -67,14 +67,15 @@ def parse_and_assert_query_file(
     query_file: TextIO,
 ) -> Sequence[Mapping[str, str]]:
     """
-    Validates if the query file is not empty and
-    that each dict contains a query string.
+    Validates if the query file is not empty and that
+    each dict contains a query and shared_resource_id string.
     """
     query_list = json.loads(query_file.read())
     assert isinstance(query_list, List)
 
     for query_dict in query_list:
         assert "query" in query_dict
+        assert "shared_resource_id" in query_dict
 
     return query_list
 
@@ -103,12 +104,11 @@ def parse_and_assert_kafka_config(kafka_config_file: TextIO) -> KafkaConfig:
 
 def assert_valid_query(query: str) -> None:
     """
-    Validates if query string contains shared_resource_id
-    and app_feature–parameters used in UsageAccumulator.record().
+    Validates if query string contains
+    app_feature–parameter used in UsageAccumulator.record().
 
     query: Datadog query
     """
-    assert "shared_resource_id" in query
     assert "app_feature" in query
 
 
@@ -235,7 +235,9 @@ def parse_and_assert_response_scope(scope: str) -> Mapping[str, str]:
 
 
 def process_series_data(
-    series_list: Sequence[DatadogResponseSeries], parsed_unit: UsageUnit
+    series_list: Sequence[DatadogResponseSeries],
+    parsed_unit: UsageUnit,
+    shared_resource_id: str,
 ) -> Sequence[UsageAccumulatorRecord]:
     """
     Iterates through the series_list and returns
@@ -290,15 +292,15 @@ def process_series_data(
 
     series_list: List of DatadogResponseSeries extracted from API response
     parsed_unit: UsageUnit parsed from API response
+    shared_resource_id: From query config file
     """
     record_list = []
     for series in series_list:
         app_feature = series["scope_dict"]["app_feature"]
-        resource = series["scope_dict"]["shared_resource_id"]
         for point in series["pointlist"]:
             record_list.append(
                 UsageAccumulatorRecord(
-                    resource_id=resource,
+                    resource_id=shared_resource_id,
                     app_feature=app_feature,
                     # point[0] is the timestamp
                     amount=int(point[1]),
@@ -356,7 +358,10 @@ def main(
     query_list = parse_and_assert_query_file(query_file)
     record_list: List[UsageAccumulatorRecord] = []
     for query_dict in query_list:
-        query, configured_unit = query_dict["query"], query_dict.get("unit")
+        query = query_dict["query"]
+        configured_unit = query_dict.get("unit")
+        shared_resource_id = query_dict["shared_resource_id"]
+
         assert_valid_query(query)
 
         response = query_datadog(
@@ -381,7 +386,9 @@ def main(
         warn_multiple_units(series_list)
         usage_unit = UsageUnit(unit.lower())
 
-        record_list.extend(process_series_data(series_list, usage_unit))
+        record_list.extend(
+            process_series_data(series_list, usage_unit, shared_resource_id)
+        )
 
     if dry_run:
         log_records(record_list)

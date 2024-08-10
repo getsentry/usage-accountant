@@ -18,7 +18,8 @@ from usageaccountant import datadog_fetcher as ddf
 class TestDatadogFetcher(unittest.TestCase):
     query_str = (
         '[{"query": "sum:zookeeper.bytes_received{*} '
-        'by {app_feature,shared_resource_id}","unit": "bytes"}]'
+        'by {app_feature,shared_resource_id}","unit": "bytes",'
+        '"shared_resource_id": "rc_long_redis"}]'
     )
     kafka_config_str = (
         '{"bootstrap_servers": ["kafka.service.host:1234"],'
@@ -147,6 +148,7 @@ class TestDatadogFetcher(unittest.TestCase):
                     self.processed_response["series"],
                 ),
                 accumulator.UsageUnit.BYTES,
+                "rc_long_redis",
             ),
             expected_record_list,
         )
@@ -180,7 +182,8 @@ class TestDatadogFetcher(unittest.TestCase):
         ddf.main(
             query_file=StringIO(
                 '[{"query": "avg:redis.mem.peak{app_feature:shared} '
-                'by {shared_resource_id}.rollup(5)"}]'
+                'by {shared_resource_id}.rollup(5)", '
+                '"shared_resource_id": "rc_long_redis"}]'
             ),
             start_time=1,
             period_seconds=2,
