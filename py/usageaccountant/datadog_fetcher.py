@@ -101,17 +101,6 @@ def parse_and_assert_kafka_config(kafka_config_file: TextIO) -> KafkaConfig:
     )
 
 
-def assert_valid_query(query: str) -> None:
-    """
-    Validates if query string contains shared_resource_id
-    and app_feature–parameters used in UsageAccumulator.record().
-
-    query: Datadog query
-    """
-    assert "shared_resource_id" in query
-    assert "app_feature" in query
-
-
 def assert_valid_unit(unit: str) -> None:
     """
     Validates if unit provided is supported by UsageUnit enum.
@@ -357,7 +346,6 @@ def main(
     record_list: List[UsageAccumulatorRecord] = []
     for query_dict in query_list:
         query, configured_unit = query_dict["query"], query_dict.get("unit")
-        assert_valid_query(query)
 
         response = query_datadog(
             query, start_time, (start_time + period_seconds)
