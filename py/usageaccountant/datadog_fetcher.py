@@ -213,7 +213,7 @@ def parse_and_assert_response_series(
 def parse_and_assert_response_scope(scope: str) -> Mapping[str, str]:
     """
     Parses scope string of the response into a dict,
-    and asserts presence of required keys.
+    and asserts presence of required key.
     """
     param_dict = {}
     parts = scope.split(",")
@@ -222,10 +222,6 @@ def parse_and_assert_response_scope(scope: str) -> Mapping[str, str]:
         assert len(sub_parts) == 2
         param_dict[sub_parts[0].strip()] = sub_parts[1].strip()
 
-    assert "shared_resource_id" in param_dict, (
-        "Required parameters, shared_resource_id not found "
-        "in series.scope of the series received."
-    )
     assert "app_feature" in param_dict, (
         "Required parameters, app_feature not found "
         "in series.scope of the series received."
