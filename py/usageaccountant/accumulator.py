@@ -209,8 +209,6 @@ class UsageAccumulator:
                 "usage_unit": key.unit.value,
                 "amount": amount,
             }
-            # TODO remove this after troubleshooting
-            logger.info(f"message: {message}")
 
             result = self.__producer.produce(
                 self.__topic,
