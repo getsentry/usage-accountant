@@ -324,14 +324,6 @@ def post_to_usage_accumulator(
             usage_type=record.usage_type,
         )
 
-        # TODO remove this after troubleshooting
-        logger.info(
-            f"resource_id: {record.resource_id}, "
-            f"app_feature: {record.app_feature}, "
-            f"amount: {record.amount}, "
-            f"usage_type: {record.usage_type}."
-        )
-
 
 def log_records(record_list: Sequence[UsageAccumulatorRecord]) -> None:
     """
@@ -401,6 +393,7 @@ def main(
     else:
         post_to_usage_accumulator(record_list, usage_accumulator)
         usage_accumulator.flush()
+        usage_accumulator.close()
 
 
 if __name__ == "__main__":
