@@ -393,6 +393,7 @@ def main(
     else:
         post_to_usage_accumulator(record_list, usage_accumulator)
         usage_accumulator.flush()
+        usage_accumulator.close()
 
 
 if __name__ == "__main__":
