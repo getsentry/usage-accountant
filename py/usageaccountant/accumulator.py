@@ -13,9 +13,10 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
+    Union,
 )
 
-from arroyo.backends.abstract import Producer
+from arroyo.backends.abstract import Producer, SimpleProducerFuture
 from arroyo.backends.kafka.configuration import build_kafka_configuration
 from arroyo.backends.kafka.consumer import KafkaPayload, KafkaProducer
 from arroyo.types import BrokerValue, Topic
@@ -112,7 +113,12 @@ class UsageAccumulator:
             )
 
         self.__queue_size = queue_size
-        self.__futures: Deque[Future[BrokerValue[KafkaPayload]]] = deque()
+        self.__futures: Deque[
+            Union[
+                SimpleProducerFuture[BrokerValue[KafkaPayload]],
+                Future[BrokerValue[KafkaPayload]],
+            ]
+        ] = deque()
 
         self.__last_log: Optional[float] = None
 
