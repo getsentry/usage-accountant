@@ -7,7 +7,7 @@ from arroyo.backends.kafka.consumer import KafkaPayload
 from arroyo.backends.local.backend import LocalBroker
 from arroyo.backends.local.storages.memory import MemoryMessageStorage
 from arroyo.types import Partition, Topic
-from arroyo.utils.clock import TestingClock
+from arroyo.utils.clock import MockedClock
 from typing_extensions import Mapping, Sequence, cast
 
 from tests.test_data import datadog_response
@@ -39,7 +39,7 @@ class TestDatadogFetcher(unittest.TestCase):
         )
 
         storage: MemoryMessageStorage[KafkaPayload] = MemoryMessageStorage()
-        self.broker = LocalBroker(storage, TestingClock())
+        self.broker = LocalBroker(storage, MockedClock())
         self.topic = Topic("test_dd_fetcher")
         self.broker.create_topic(self.topic, 1)
 
