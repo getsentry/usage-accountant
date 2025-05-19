@@ -95,7 +95,9 @@ def parse_and_assert_kafka_config(kafka_config_file: TextIO) -> KafkaConfig:
     config_params = kafka_config["config_params"]
 
     if "sasl.password" in config_params:
-        config_params["sasl.password"] = os.path.expandvars(config_params["sasl.password"])
+        config_params["sasl.password"] = os.path.expandvars(
+            config_params["sasl.password"]
+        )
 
     assert isinstance(bootstrap_servers, Sequence)
     assert isinstance(config_params, Mapping)
