@@ -75,12 +75,12 @@ class TestDatadogFetcher(unittest.TestCase):
         os.environ["SASL_PASSWORD"] = "supersecret"
 
         expected_kafka_config = accumulator.KafkaConfig(
-                bootstrap_servers=["kafka.service.host:1234"],
-                config_params={
-                    "sasl.username": "alice",
-                    "sasl.password": "supersecret",
-                }
-            )
+            bootstrap_servers=["kafka.service.host:1234"],
+            config_params={
+                "sasl.username": "alice",
+                "sasl.password": "supersecret",
+            },
+        )
 
         kafka_io = StringIO(
             '{"bootstrap_servers": ["kafka.service.host:1234"],'
@@ -90,8 +90,7 @@ class TestDatadogFetcher(unittest.TestCase):
         )
 
         self.assertEqual(
-            ddf.parse_and_assert_kafka_config(kafka_io),
-            expected_kafka_config
+            ddf.parse_and_assert_kafka_config(kafka_io), expected_kafka_config
         )
 
     def test_parse_and_assert_unit(self) -> None:

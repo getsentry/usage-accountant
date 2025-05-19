@@ -33,7 +33,7 @@ repos:
         args: [--config-file, py/mypy.ini, --strict]
         additional_dependencies: [
           pytest==7.1.2,
-          sentry-arroyo==2.14.5,
+          sentry-arroyo==2.22.0,
         ]
         files: ^py/.+
 default_language_version:
