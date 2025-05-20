@@ -7,7 +7,7 @@ from arroyo.backends.kafka.consumer import KafkaPayload
 from arroyo.backends.local.backend import LocalBroker
 from arroyo.backends.local.storages.memory import MemoryMessageStorage
 from arroyo.types import BrokerValue, Partition, Topic
-from arroyo.utils.clock import TestingClock
+from arroyo.utils.clock import MockedClock
 
 from usageaccountant import UsageAccumulator, UsageUnit
 
@@ -15,7 +15,7 @@ from usageaccountant import UsageAccumulator, UsageUnit
 @pytest.fixture
 def broker() -> LocalBroker[KafkaPayload]:
     storage: MemoryMessageStorage[KafkaPayload] = MemoryMessageStorage()
-    broker = LocalBroker(storage, TestingClock())
+    broker = LocalBroker(storage, MockedClock())
     topic = Topic("test_resource_usage")
     broker.create_topic(topic, 1)
     return broker

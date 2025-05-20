@@ -7,13 +7,13 @@ name = "sentry-usage-accountant"
 version = "0.0.11"
 description = "A library to account for shared resource usage"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    'sentry-arroyo>=2.14.5'
+    'sentry-arroyo>=2.22.0'
 ]
 
 [tool.setuptools.package-data]

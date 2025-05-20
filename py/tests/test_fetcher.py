@@ -1,4 +1,5 @@
 import copy
+import os
 import unittest
 from io import StringIO
 from unittest.mock import Mock, patch
@@ -7,7 +8,7 @@ from arroyo.backends.kafka.consumer import KafkaPayload
 from arroyo.backends.local.backend import LocalBroker
 from arroyo.backends.local.storages.memory import MemoryMessageStorage
 from arroyo.types import Partition, Topic
-from arroyo.utils.clock import TestingClock
+from arroyo.utils.clock import MockedClock
 from typing_extensions import Mapping, Sequence, cast
 
 from tests.test_data import datadog_response
@@ -39,7 +40,7 @@ class TestDatadogFetcher(unittest.TestCase):
         )
 
         storage: MemoryMessageStorage[KafkaPayload] = MemoryMessageStorage()
-        self.broker = LocalBroker(storage, TestingClock())
+        self.broker = LocalBroker(storage, MockedClock())
         self.topic = Topic("test_dd_fetcher")
         self.broker.create_topic(self.topic, 1)
 
@@ -68,6 +69,28 @@ class TestDatadogFetcher(unittest.TestCase):
         )
         self.assertRaises(
             AssertionError, ddf.parse_and_assert_kafka_config, kafka_io
+        )
+
+    def test_parse_and_assert_expandvars(self) -> None:
+        os.environ["SASL_PASSWORD"] = "supersecret"
+
+        expected_kafka_config = accumulator.KafkaConfig(
+            bootstrap_servers=["kafka.service.host:1234"],
+            config_params={
+                "sasl.username": "alice",
+                "sasl.password": "supersecret",
+            },
+        )
+
+        kafka_io = StringIO(
+            '{"bootstrap_servers": ["kafka.service.host:1234"],'
+            '"config_params": '
+            '{"sasl.username": "alice",'
+            '"sasl.password": "${SASL_PASSWORD}"}}'
+        )
+
+        self.assertEqual(
+            ddf.parse_and_assert_kafka_config(kafka_io), expected_kafka_config
         )
 
     def test_parse_and_assert_unit(self) -> None:
