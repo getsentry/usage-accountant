@@ -31,6 +31,9 @@ class TestDatadogFetcher(unittest.TestCase):
 
     def setUp(self) -> None:
         self.good_response = copy.deepcopy(datadog_response.good_response)
+        self.good_response_feature_tag = copy.deepcopy(
+            datadog_response.good_response_feature_tag
+        )
         self.bad_response = copy.deepcopy(datadog_response.bad_response)
         self.processed_response = copy.deepcopy(
             datadog_response.processed_response
@@ -124,6 +127,12 @@ class TestDatadogFetcher(unittest.TestCase):
         series_list = ddf.parse_and_assert_response_series(self.good_response)
         assert len(series_list) == 1
 
+    def test_parse_and_assert_response_series_feature_tag(self) -> None:
+        series_list = ddf.parse_and_assert_response_series(
+            self.good_response_feature_tag
+        )
+        assert len(series_list) == 1
+
     def test_parse_and_assert_response_series_error(self) -> None:
         self.assertRaises(
             AssertionError,
@@ -197,6 +206,31 @@ class TestDatadogFetcher(unittest.TestCase):
                 ),
                 accumulator.UsageUnit.BYTES,
                 "rc_long_redis",
+            ),
+            expected_record_list,
+        )
+
+    def test_process_series_data_feature_tag(self) -> None:
+        expected_record_list = [
+            ddf.UsageAccumulatorRecord(
+                resource_id="rc_long_redis",
+                app_feature="shared",
+                amount=2,
+                usage_type=accumulator.UsageUnit.BYTES,
+            ),
+            ddf.UsageAccumulatorRecord(
+                resource_id="rc_long_redis",
+                app_feature="shared",
+                amount=3,
+                usage_type=accumulator.UsageUnit.BYTES,
+            ),
+        ]
+        parsed = ddf.parse_and_assert_response_series(
+            self.good_response_feature_tag
+        )
+        self.assertEqual(
+            ddf.process_series_data(
+                parsed, accumulator.UsageUnit.BYTES, "rc_long_redis"
             ),
             expected_record_list,
         )
