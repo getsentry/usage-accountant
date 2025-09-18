@@ -112,9 +112,15 @@ def assert_valid_query(query: str) -> None:
     Validates if query string contains
     app_feature–parameter used in UsageAccumulator.record().
 
+    We allow both `app_feature` and `feature` to account for
+    the scenario where a getsentry pod is labeled with `app_feature`,
+    but we *also* collect finer grained usage from within the container.
+    In this situation, the application metrics cannot use `app_feature`
+    as the tag value becomes `shared, issues`.
+
     query: Datadog query
     """
-    assert "app_feature" in query
+    assert "app_feature" in query or "feature" in query
 
 
 def assert_valid_unit(unit: str) -> None:
@@ -227,8 +233,8 @@ def parse_and_assert_response_scope(scope: str) -> Mapping[str, str]:
         assert len(sub_parts) == 2
         param_dict[sub_parts[0].strip()] = sub_parts[1].strip()
 
-    assert "app_feature" in param_dict, (
-        "Required parameters, app_feature not found "
+    assert "app_feature" in param_dict or "feature" in param_dict, (
+        "Required parameters, `app_feature` or `feature` not found "
         "in series.scope of the series received."
     )
 
@@ -297,7 +303,10 @@ def process_series_data(
     """
     record_list = []
     for series in series_list:
-        app_feature = series["scope_dict"]["app_feature"]
+        if "app_feature" in series["scope_dict"]:
+            app_feature = series["scope_dict"]["app_feature"]
+        elif "feature" in series["scope_dict"]:
+            app_feature = series["scope_dict"]["feature"]
         for point in series["pointlist"]:
             # skip records where there's no data recorded by Datadog
             if point[1] is not None:
