@@ -112,6 +112,12 @@ def assert_valid_query(query: str) -> None:
     Validates if query string contains
     app_feature–parameter used in UsageAccumulator.record().
 
+    We allow both `app_feature` and `feature` to account for
+    the scenario where a getsentry pod is labeled with `app_feature`,
+    but we *also* collect finer grained usage from within the container.
+    In this situation, the application metrics cannot use `app_feature`
+    as the tag value becomes `shared, issues`.
+
     query: Datadog query
     """
     assert "app_feature" in query or "feature" in query
