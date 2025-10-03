@@ -152,10 +152,7 @@ class TestDatadogFetcher(unittest.TestCase):
 
     def test_parse_and_assert_response_series_empty(self) -> None:
         """Test that parse_and_assert_response_series handles empty series gracefully."""
-        empty_response = {
-            "status": "ok",
-            "series": []
-        }
+        empty_response = {"status": "ok", "series": []}
         series_list = ddf.parse_and_assert_response_series(empty_response)
         self.assertEqual(len(series_list), 0)
 
