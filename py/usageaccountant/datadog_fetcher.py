@@ -205,7 +205,6 @@ def parse_and_assert_response_series(
     series_list = response.get("series")
     assert series_list is not None
     assert isinstance(series_list, Sequence)
-    assert len(series_list) > 0
 
     casted_series_list = []
     for series in series_list:
