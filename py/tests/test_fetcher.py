@@ -114,6 +114,11 @@ class TestDatadogFetcher(unittest.TestCase):
             cast(ddf.DatadogResponseSeries, series),
         )
 
+    def test_parse_and_assert_unit_empty_series(self) -> None:
+        """Test that parse_and_assert_unit handles empty series list gracefully."""
+        result = ddf.parse_and_assert_unit([])
+        self.assertEqual(result, "")
+
     def test_warn_multiple_units(self) -> None:
         series_list = self.good_response["series"]
         series_list[0]["unit"][1] = {"dummy": "unit"}  # type: ignore
@@ -122,6 +127,11 @@ class TestDatadogFetcher(unittest.TestCase):
                 cast(Sequence[ddf.DatadogResponseSeries], series_list)
             )
             assert len(cm.output) == 1
+
+    def test_warn_multiple_units_empty_series(self) -> None:
+        """Test that warn_multiple_units handles empty series list gracefully."""
+        # This should not raise any exception or log any warnings
+        ddf.warn_multiple_units([])
 
     def test_parse_and_assert_response_series(self) -> None:
         series_list = ddf.parse_and_assert_response_series(self.good_response)
@@ -139,6 +149,15 @@ class TestDatadogFetcher(unittest.TestCase):
             ddf.parse_and_assert_response_series,
             self.bad_response,
         )
+
+    def test_parse_and_assert_response_series_empty(self) -> None:
+        """Test that parse_and_assert_response_series handles empty series gracefully."""
+        empty_response = {
+            "status": "ok",
+            "series": []
+        }
+        series_list = ddf.parse_and_assert_response_series(empty_response)
+        self.assertEqual(len(series_list), 0)
 
     def test_parse_and_assert_response_scope(self) -> None:
         sample_scope = self.good_response["series"][0].get(  # type: ignore

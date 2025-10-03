@@ -134,6 +134,10 @@ def parse_and_assert_unit(series_list: Sequence[DatadogResponseSeries]) -> Any:
     """
     Extracts unit from a DatadogResponseSeries object.
     """
+    # Return empty string if no series data is available
+    if not series_list:
+        return ""
+
     # assumes all the series have the same unit,
     # hence, using the first element
     assert "unit" in series_list[0]
@@ -166,6 +170,10 @@ def warn_multiple_units(series_list: Sequence[DatadogResponseSeries]) -> None:
     """
     Warns if multiple units are received from Datadog API.
     """
+    # Return early if no series data is available
+    if not series_list:
+        return
+
     unit_list = series_list[0]["unit"]
     if unit_list and unit_list[1] is not None:
         logger.warning(f"Received multiple units from Datadog: {unit_list}.")
@@ -205,6 +213,7 @@ def parse_and_assert_response_series(
     series_list = response.get("series")
     assert series_list is not None
     assert isinstance(series_list, Sequence)
+    # Allow empty series_list - Datadog API can return no data
 
     casted_series_list = []
     for series in series_list:
