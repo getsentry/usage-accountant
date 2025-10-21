@@ -202,7 +202,7 @@ def query_datadog(query: str, start_time: int, end_time: int) -> Any:
 
 
 def parse_and_assert_response_series(
-    response: Mapping[Any, Any],
+    response: Mapping[Any, Any]
 ) -> Sequence[DatadogResponseSeries]:
     """
     Validates list of series objects in the API response.
