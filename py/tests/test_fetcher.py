@@ -115,7 +115,10 @@ class TestDatadogFetcher(unittest.TestCase):
         )
 
     def test_parse_and_assert_unit_empty_series(self) -> None:
-        """Test that parse_and_assert_unit handles empty series list gracefully."""
+        """
+        Test that parse_and_assert_unit handles empty series list gracefully.
+        """
+
         result = ddf.parse_and_assert_unit([])
         self.assertEqual(result, "")
 
@@ -129,7 +132,10 @@ class TestDatadogFetcher(unittest.TestCase):
             assert len(cm.output) == 1
 
     def test_warn_multiple_units_empty_series(self) -> None:
-        """Test that warn_multiple_units handles empty series list gracefully."""
+        """
+        Test that warn_multiple_units handles empty series list gracefully.
+        """
+
         # This should not raise any exception or log any warnings
         ddf.warn_multiple_units([])
 
@@ -151,7 +157,11 @@ class TestDatadogFetcher(unittest.TestCase):
         )
 
     def test_parse_and_assert_response_series_empty(self) -> None:
-        """Test that parse_and_assert_response_series handles empty series gracefully."""
+        """
+        Test that parse_and_assert_response_series handles empty series
+        gracefully.
+        """
+
         empty_response = {"status": "ok", "series": []}
         series_list = ddf.parse_and_assert_response_series(empty_response)
         self.assertEqual(len(series_list), 0)

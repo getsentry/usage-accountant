@@ -95,7 +95,7 @@ class UsageAccumulator:
         if producer is not None:
             assert (
                 kafka_config is None
-            ), "If producer is provided, initialization parameters cannot be provided"
+            ), "If producer is provided, initialization parameters cannot be provided"  # noqa: E501
             self.__producer: Producer[KafkaPayload] = producer
 
         else:
