@@ -74,3 +74,9 @@ reportMissingSuperCall = "error"
 reportPropertyTypeMismatch = "error"
 reportUninitializedInstanceVariable = "error"
 reportUnnecessaryTypeIgnoreComment = "error"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "typing-extensions>=4.15.0",
+]
