@@ -93,10 +93,9 @@ class UsageAccumulator:
         self.__topic = Topic(topic_name)
 
         if producer is not None:
-            assert kafka_config is None, (
-                "If producer is provided, initialization "
-                "parameters cannot be provided"
-            )
+            assert (
+                kafka_config is None
+            ), "If producer is provided, initialization parameters cannot be provided"  # noqa: E501
             self.__producer: Producer[KafkaPayload] = producer
 
         else:

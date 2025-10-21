@@ -2,8 +2,7 @@ good_response = {
     "status": "ok",
     "res_type": "time_series",
     "resp_version": 1,
-    "query": "avg: redis.mem.peak{app_feature: shared}"
-    "by{shared_resource_id}.rollup(5)",
+    "query": "avg: redis.mem.peak{app_feature: shared}by{shared_resource_id}.rollup(5)",  # noqa: E501
     "from_date": 1721083881000,
     "to_date": 1721083891000,
     "series": [
@@ -45,8 +44,7 @@ good_response_feature_tag = {
     "status": "ok",
     "res_type": "time_series",
     "resp_version": 1,
-    "query": "avg: redis.mem.peak{feature: shared}"
-    "by{shared_resource_id}.rollup(5)",
+    "query": "avg: redis.mem.peak{feature: shared}by{shared_resource_id}.rollup(5)",  # noqa: E501
     "from_date": 1721083881000,
     "to_date": 1721083891000,
     "series": [
@@ -88,8 +86,7 @@ bad_response = {
     "status": "error",
     "res_type": "time_series",
     "resp_version": 1,
-    "query": "avg: redis.mem.peak{app_feature: shared}"
-    "by{shared_resource_id}.rollup(5)",
+    "query": "avg: redis.mem.peak{app_feature: shared}by{shared_resource_id}.rollup(5)",  # noqa: E501
     "from_date": 1721083891000,
     "to_date": 1721083881000,
     "series": [],
