@@ -4,6 +4,8 @@ steps:
     'build',
     '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage-accountant/image:$COMMIT_SHA',
     '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage-accountant/image:latest',
+    '-t', 'us-docker.pkg.dev/$PROJECT_ID/usage-accountant-mr/image:${COMMIT_SHA}',
+    '-t', 'us-docker.pkg.dev/$PROJECT_ID/usage-accountant-mr/image:latest',
     '--build-arg',
     'BUILDKIT_INLINE_CACHE=1',
     '--cache-from', 'us-central1-docker.pkg.dev/$PROJECT_ID/usage-accountant/image:latest',
@@ -18,9 +20,11 @@ steps:
     - |
       # Push "latest" tag only when building on "main"
       [ "$BRANCH_NAME" != "main" ] && exit 0
+      docker push us-docker.pkg.dev/$PROJECT_ID/usage-accountant-mr/image:latest
       docker push us-central1-docker.pkg.dev/$PROJECT_ID/usage-accountant/image:latest
 
 images: [
   'us-central1-docker.pkg.dev/$PROJECT_ID/usage-accountant/image:$COMMIT_SHA',
+  'us-docker.pkg.dev/$PROJECT_ID/usage-accountant-mr/image:$COMMIT_SHA',
 ]
 timeout: 180s
