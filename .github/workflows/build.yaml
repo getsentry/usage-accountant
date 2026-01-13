@@ -11,10 +11,6 @@ on:
     paths:
       - py/**
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   dist:
     name: Create wheel and source distribution
