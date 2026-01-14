@@ -2,7 +2,9 @@ minVersion: 0.34.1
 github:
   owner: getsentry
   repo: usage-accountant
-changelogPolicy: auto
+changelog:
+  filePath: CHANGELOG.md
+  policy: auto
 preReleaseCommand: bash ../scripts/bump-version-py.sh
 releaseBranchPrefix: release-usage-accountant-py
 targets:
