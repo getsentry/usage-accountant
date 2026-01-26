@@ -1,0 +1,43 @@
+# Build stage - compile dependencies
+FROM python:3.11-slim as builder
+
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy application code
+COPY . /app/
+
+WORKDIR /app
+
+# Install the package and its dependencies
+RUN pip install --no-cache-dir -e py
+
+# Test stage - run tests to verify dependencies
+FROM builder as test
+
+# Install test dependencies
+RUN pip install --no-cache-dir pytest>=8.4.2 typing-extensions>=4.15.0
+
+# Run tests
+RUN pytest -vv py
+
+# Runtime stage - pre-built distroless Python (Debian 12)
+FROM gcr.io/distroless/python3-debian12:nonroot
+
+# Set Python path to include site-packages
+ENV PYTHONPATH=/usr/lib/python3.11/site-packages
+
+# Copy Python packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/lib/python3.11/site-packages
+
+# Copy the application code
+COPY --from=builder /app /app
+
+WORKDIR /app/py
+
+# Use nonroot user (uid 65532)
+USER nonroot
+
+ENTRYPOINT ["python", "-m", "usageaccountant.datadog_fetcher"]

@@ -1,0 +1,42 @@
+# Build stage - compile dependencies and install packages
+FROM python:3.12-slim as builder
+
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy application code
+COPY . /app/
+
+WORKDIR /app
+
+# Install the package and its dependencies
+RUN pip install --no-cache-dir -e py
+
+# Test stage - run tests to verify dependencies
+FROM builder as test
+
+# Install test dependencies
+RUN pip install --no-cache-dir pytest>=8.4.2 typing-extensions>=4.15.0
+
+# Run tests
+RUN pytest -vv py
+
+# Runtime stage - distroless base (no Python) with Python 3.12 from builder
+FROM gcr.io/distroless/base-debian13:nonroot
+
+# Copy Python 3.12 runtime from builder
+COPY --from=builder /usr/local/bin/python3.12 /usr/bin/python3.12
+COPY --from=builder /usr/local/lib/python3.12 /usr/lib/python3.12
+COPY --from=builder /usr/local/lib/libpython3.12.so.1.0 /usr/lib/aarch64-linux-gnu/libpython3.12.so.1.0
+
+# Copy the application code
+COPY --from=builder /app /app
+
+WORKDIR /app/py
+
+# Use nonroot user (uid 65532)
+USER nonroot
+
+ENTRYPOINT ["python3.12", "-m", "usageaccountant.datadog_fetcher"]

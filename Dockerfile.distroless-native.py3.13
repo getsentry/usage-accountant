@@ -1,0 +1,80 @@
+# Build stage - compile Python and dependencies from source
+FROM debian:13-slim as builder
+
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        gcc \
+        libc6-dev \
+        wget \
+        make \
+        xz-utils \
+        zlib1g-dev \
+        libssl-dev \
+        libffi-dev \
+        libbz2-dev \
+        libreadline-dev \
+        libsqlite3-dev \
+        liblzma-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Build Python from source
+WORKDIR /tmp
+RUN wget -q https://www.python.org/ftp/python/3.13.1/Python-3.13.1.tar.xz && \
+    tar -xf Python-3.13.1.tar.xz && \
+    cd Python-3.13.1 && \
+    ./configure \
+        --prefix=/usr/local \
+        --enable-optimizations \
+        --with-ensurepip=install \
+        --enable-shared \
+        LDFLAGS="-Wl,--rpath=/usr/local/lib" && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf Python-3.13.1*
+
+# Verify Python installation
+RUN python3.13 --version && \
+    pip3.13 --version
+
+# Copy application code
+COPY . /app/
+
+WORKDIR /app
+
+# Install the package and its dependencies
+RUN pip3.13 install --no-cache-dir -e py
+
+# Test stage - run tests to verify dependencies
+FROM builder as test
+
+# Install test dependencies
+RUN pip3.13 install --no-cache-dir pytest>=8.4.2 typing-extensions>=4.15.0
+
+# Run tests
+RUN pytest -vv py
+
+# Runtime stage - distroless base with compiled Python
+FROM gcr.io/distroless/base-debian13:nonroot
+
+# Copy Python runtime from builder
+COPY --from=builder /usr/local/bin/python3.13 /usr/bin/python3.13
+COPY --from=builder /usr/local/lib/python3.13 /usr/lib/python3.13
+COPY --from=builder /usr/local/lib/libpython3.13.so* /usr/lib/aarch64-linux-gnu/
+
+# Copy necessary shared libraries
+COPY --from=builder /lib/aarch64-linux-gnu/libz.so.1* /lib/aarch64-linux-gnu/
+COPY --from=builder /usr/lib/aarch64-linux-gnu/libssl.so.3* /usr/lib/aarch64-linux-gnu/
+COPY --from=builder /usr/lib/aarch64-linux-gnu/libcrypto.so.3* /usr/lib/aarch64-linux-gnu/
+
+# Copy the application code
+COPY --from=builder /app /app
+
+WORKDIR /app/py
+
+# Use nonroot user (uid 65532)
+USER nonroot
+
+ENTRYPOINT ["python3.13", "-m", "usageaccountant.datadog_fetcher"]
