@@ -7,7 +7,7 @@ name = "sentry-usage-accountant"
 version = "0.0.11"
 description = "A library to account for shared resource usage"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
@@ -21,7 +21,7 @@ usageaccountant = ["py.typed"]
 
 [tool.black]
 line-length = 79
-target-version = ['py38']
+target-version = ['py313']
 skip-magic-trailing-comma = true
 
 [tool.isort]
@@ -63,7 +63,7 @@ exclude = [
 ]
 
 pythonPlatform = "Linux"
-pythonVersion = "3.11"
+pythonVersion = "3.13"
 
 typeCheckingMode = "strict"
 
