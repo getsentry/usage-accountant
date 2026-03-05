@@ -1,18 +1,12 @@
-FROM python:3.13-slim-trixie as application
+FROM us-docker.pkg.dev/sentryio/dhi/python:3.13-debian13-dev AS build
 
-RUN groupadd -r usage-accountant --gid 1000 && useradd -r -m -g usage-accountant --uid 1000 usage-accountant
+COPY py/ /app/py/
+RUN pip install --no-cache-dir /app/py
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc
+FROM us-docker.pkg.dev/sentryio/dhi/python:3.13-debian13
 
-COPY . /app/
+COPY --from=build /opt/python/lib/python3.13/site-packages /opt/python/lib/python3.13/site-packages
 
-WORKDIR /app
+USER nonroot
 
-RUN pip install -e py
-
-WORKDIR /app/py
-
-USER usage-accountant
-
-ENTRYPOINT ["python", "-m", "usageaccountant.datadog_fetcher"]
+ENTRYPOINT ["/opt/python/bin/python3", "-m", "usageaccountant.datadog_fetcher"]
