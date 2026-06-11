@@ -128,6 +128,7 @@ class UsageAccumulator:
         app_feature: str,
         amount: int,
         usage_type: UsageUnit,
+        timestamp: Optional[int] = None,
     ) -> None:
         """
         Record a chunk of usage of a resource for a feature.
@@ -142,6 +143,11 @@ class UsageAccumulator:
         `app_feature` identifies the product feature.
         `amount`  is the amount of resource used.
         `usage_type` is the unit of measure for `amount`.
+        `timestamp` optionally overrides the time the usage is associated
+          with (as unixtime seconds). This is useful for larger batch
+          rollups (like with the `bigquery_fetcher` entrypoint) that may
+          be handling a lot of usage data from a day earlier than the
+          current time.
         """
         now = time.time()
         if (
@@ -151,8 +157,10 @@ class UsageAccumulator:
             self.flush()
             self.__first_timestamp = now
 
+        bucket_time = now if timestamp is None else timestamp
         key = UsageKey(
-            floor(now / self.__granularity_sec) * self.__granularity_sec,
+            floor(bucket_time / self.__granularity_sec)
+            * self.__granularity_sec,
             resource_id,
             app_feature,
             usage_type,

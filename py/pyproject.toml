@@ -16,6 +16,10 @@ dependencies = [
     'sentry-arroyo>=2.22.0'
 ]
 
+[project.optional-dependencies]
+# Only needed for the `bigquery_fetcher` entrypoint
+bigquery = ['google-cloud-bigquery>=3.0.0']
+
 [tool.setuptools.package-data]
 usageaccountant = ["py.typed"]
 
