@@ -26,6 +26,7 @@ class UsageUnit(Enum):
     MILLISECONDS = "milliseconds"
     BYTES = "bytes"
     MILLISECONDS_SEC = "milliseconds_sec"
+    OPERATIONS = "operations"
 
 
 class UsageKey(NamedTuple):
