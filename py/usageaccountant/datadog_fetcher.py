@@ -8,7 +8,6 @@ from typing import (
     Dict,
     List,
     Mapping,
-    NamedTuple,
     Optional,
     Sequence,
     TextIO,
@@ -18,10 +17,13 @@ from typing import (
 )
 from urllib.request import Request, urlopen
 
-from usageaccountant.accumulator import (
-    KafkaConfig,
-    UsageAccumulator,
-    UsageUnit,
+from usageaccountant.accumulator import UsageAccumulator, UsageUnit
+from usageaccountant.fetcher_utils import (
+    assert_valid_unit,
+    log_records,
+    parse_and_assert_kafka_config,
+    post_to_usage_accumulator,
+    UsageAccumulatorRecord,
 )
 
 headers = {
@@ -56,13 +58,6 @@ class DatadogResponse(TypedDict):
     series: Sequence[DatadogResponseSeries]
 
 
-class UsageAccumulatorRecord(NamedTuple):
-    resource_id: str
-    app_feature: str
-    amount: int
-    usage_type: UsageUnit
-
-
 def parse_and_assert_query_file(
     query_file: TextIO,
 ) -> Sequence[Mapping[str, str]]:
@@ -80,33 +75,6 @@ def parse_and_assert_query_file(
     return query_list
 
 
-def parse_and_assert_kafka_config(kafka_config_file: TextIO) -> KafkaConfig:
-    """
-    Validates if the kafka config file contains
-    bootstrap_servers and config_params.
-    """
-    kafka_config = json.loads(kafka_config_file.read())
-
-    assert isinstance(kafka_config, Mapping)
-    assert "bootstrap_servers" in kafka_config
-    assert "config_params" in kafka_config
-
-    bootstrap_servers = kafka_config["bootstrap_servers"]
-    config_params = kafka_config["config_params"]
-
-    if "sasl.password" in config_params:
-        config_params["sasl.password"] = os.path.expandvars(
-            config_params["sasl.password"]
-        )
-
-    assert isinstance(bootstrap_servers, Sequence)
-    assert isinstance(config_params, Mapping)
-
-    return KafkaConfig(
-        bootstrap_servers=bootstrap_servers, config_params=config_params
-    )
-
-
 def assert_valid_query(query: str) -> None:
     """
     Validates if query string contains
@@ -121,13 +89,6 @@ def assert_valid_query(query: str) -> None:
     query: Datadog query
     """
     assert "app_feature" in query or "feature" in query
-
-
-def assert_valid_unit(unit: str) -> None:
-    """
-    Validates if unit provided is supported by UsageUnit enum.
-    """
-    UsageUnit(unit.lower())
 
 
 def parse_and_assert_unit(series_list: Sequence[DatadogResponseSeries]) -> Any:
@@ -202,7 +163,7 @@ def query_datadog(query: str, start_time: int, end_time: int) -> Any:
 
 
 def parse_and_assert_response_series(
-    response: Mapping[Any, Any]
+    response: Mapping[Any, Any],
 ) -> Sequence[DatadogResponseSeries]:
     """
     Validates list of series objects in the API response.
@@ -325,39 +286,11 @@ def process_series_data(
                         # point[0] is the timestamp
                         amount=int(point[1]),
                         usage_type=parsed_unit,
+                        timestamp=None,
                     )
                 )
 
     return record_list
-
-
-def post_to_usage_accumulator(
-    record_list: Sequence[UsageAccumulatorRecord],
-    usage_accumulator: UsageAccumulator,
-) -> None:
-    """
-    Posts UsageAccumulatorRecords to UsageAccumulator.
-    """
-    for record in record_list:
-        usage_accumulator.record(
-            resource_id=record.resource_id,
-            app_feature=record.app_feature,
-            amount=record.amount,
-            usage_type=record.usage_type,
-        )
-
-
-def log_records(record_list: Sequence[UsageAccumulatorRecord]) -> None:
-    """
-    Logs UsageAccumulatorRecords.
-    """
-    for record in record_list:
-        logger.info(
-            f"resource_id: {record.resource_id}, "
-            f"app_feature: {record.app_feature}, "
-            f"amount: {record.amount}, "
-            f"usage_type: {record.usage_type}."
-        )
 
 
 def main(
@@ -411,7 +344,7 @@ def main(
         )
 
     if dry_run:
-        log_records(record_list)
+        log_records(logger, record_list)
     else:
         post_to_usage_accumulator(record_list, usage_accumulator)
         usage_accumulator.flush()
