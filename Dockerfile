@@ -1,7 +1,9 @@
 FROM us-docker.pkg.dev/sentryio/dhi-mirror/python:3.13-debian13-dev AS build
 
 COPY py/ /app/py/
-RUN pip install --no-cache-dir /app/py
+
+# Install `bigquery` extra to enable the `bigquery_fetcher` entrypoint
+RUN pip install --no-cache-dir "/app/py[bigquery]"
 
 FROM us-docker.pkg.dev/sentryio/dhi-mirror/python:3.13-debian13
 

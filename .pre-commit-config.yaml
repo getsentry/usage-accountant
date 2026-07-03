@@ -34,6 +34,7 @@ repos:
         additional_dependencies: [
           pytest==7.1.2,
           sentry-arroyo==2.22.0,
+          google-cloud-bigquery==3.41.0,
         ]
         files: ^py/.+
 default_language_version:

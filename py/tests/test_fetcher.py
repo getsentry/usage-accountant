@@ -1,5 +1,4 @@
 import copy
-import os
 import unittest
 from io import StringIO
 from unittest.mock import Mock, patch
@@ -14,6 +13,7 @@ from typing_extensions import Mapping, Sequence, cast
 from tests.test_data import datadog_response
 from usageaccountant import accumulator
 from usageaccountant import datadog_fetcher as ddf
+from usageaccountant.fetcher_utils import UsageAccumulatorRecord
 
 
 class TestDatadogFetcher(unittest.TestCase):
@@ -21,12 +21,6 @@ class TestDatadogFetcher(unittest.TestCase):
         '[{"query": "sum:zookeeper.bytes_received{*} '
         'by {app_feature,shared_resource_id}","unit": "bytes",'
         '"shared_resource_id": "rc_long_redis"}]'
-    )
-    kafka_config_str = (
-        '{"bootstrap_servers": ["kafka.service.host:1234"],'
-        '"config_params": '
-        '{"compression.type": "lz4",'
-        '"message.max.bytes": 10}}'
     )
 
     def setUp(self) -> None:
@@ -60,40 +54,6 @@ class TestDatadogFetcher(unittest.TestCase):
         query_io = StringIO('[{"unit": "bytes"}]')
         self.assertRaises(
             AssertionError, ddf.parse_and_assert_query_file, query_io
-        )
-
-    def test_parse_and_assert_kafka_config(self) -> None:
-        kafka_io = StringIO(self.kafka_config_str)
-        ddf.parse_and_assert_kafka_config(kafka_io)
-
-    def test_parse_and_assert_kafka_config_no_config_params(self) -> None:
-        kafka_io = StringIO(
-            '{"bootstrap_servers": ["kafka.service.host:1234"]}'
-        )
-        self.assertRaises(
-            AssertionError, ddf.parse_and_assert_kafka_config, kafka_io
-        )
-
-    def test_parse_and_assert_expandvars(self) -> None:
-        os.environ["SASL_PASSWORD"] = "supersecret"
-
-        expected_kafka_config = accumulator.KafkaConfig(
-            bootstrap_servers=["kafka.service.host:1234"],
-            config_params={
-                "sasl.username": "alice",
-                "sasl.password": "supersecret",
-            },
-        )
-
-        kafka_io = StringIO(
-            '{"bootstrap_servers": ["kafka.service.host:1234"],'
-            '"config_params": '
-            '{"sasl.username": "alice",'
-            '"sasl.password": "${SASL_PASSWORD}"}}'
-        )
-
-        self.assertEqual(
-            ddf.parse_and_assert_kafka_config(kafka_io), expected_kafka_config
         )
 
     def test_parse_and_assert_unit(self) -> None:
@@ -188,17 +148,19 @@ class TestDatadogFetcher(unittest.TestCase):
 
     def test_process_series_data(self) -> None:
         expected_record_list = [
-            ddf.UsageAccumulatorRecord(
+            UsageAccumulatorRecord(
                 resource_id="rc_long_redis",
                 app_feature="shared",
                 amount=2,
                 usage_type=accumulator.UsageUnit.BYTES,
+                timestamp=None,
             ),
-            ddf.UsageAccumulatorRecord(
+            UsageAccumulatorRecord(
                 resource_id="rc_long_redis",
                 app_feature="shared",
                 amount=3,
                 usage_type=accumulator.UsageUnit.BYTES,
+                timestamp=None,
             ),
         ]
 
@@ -216,11 +178,12 @@ class TestDatadogFetcher(unittest.TestCase):
 
     def test_process_series_data_with_none(self) -> None:
         expected_record_list = [
-            ddf.UsageAccumulatorRecord(
+            UsageAccumulatorRecord(
                 resource_id="rc_long_redis",
                 app_feature="shared",
                 amount=2,
                 usage_type=accumulator.UsageUnit.BYTES,
+                timestamp=None,
             )
         ]
 
@@ -238,17 +201,19 @@ class TestDatadogFetcher(unittest.TestCase):
 
     def test_process_series_data_feature_tag(self) -> None:
         expected_record_list = [
-            ddf.UsageAccumulatorRecord(
+            UsageAccumulatorRecord(
                 resource_id="rc_long_redis",
                 app_feature="shared",
                 amount=2,
                 usage_type=accumulator.UsageUnit.BYTES,
+                timestamp=None,
             ),
-            ddf.UsageAccumulatorRecord(
+            UsageAccumulatorRecord(
                 resource_id="rc_long_redis",
                 app_feature="shared",
                 amount=3,
                 usage_type=accumulator.UsageUnit.BYTES,
+                timestamp=None,
             ),
         ]
         parsed = ddf.parse_and_assert_response_series(
