@@ -1,11 +1,23 @@
 import argparse
 import logging
 from datetime import date, datetime, timezone
-from typing import Any, Iterable, List, Mapping, Optional, Sequence, TextIO
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    TextIO,
+    Tuple,
+)
 
 from google.cloud import bigquery
 
 from usageaccountant.accumulator import UsageAccumulator, UsageUnit
+from usageaccountant.bigtable_sharding import BigtableQuerySharder
 from usageaccountant.fetcher_utils import (
     UsageAccumulatorRecord,
     assert_valid_unit,
@@ -13,6 +25,7 @@ from usageaccountant.fetcher_utils import (
     parse_and_assert_kafka_config,
     post_to_usage_accumulator,
 )
+from usageaccountant.query_sharding import QuerySharder
 
 logger = logging.getLogger("bigquery_fetcher")
 logging.basicConfig(
@@ -27,6 +40,28 @@ AMOUNT_COLUMN = "amount"
 # accepted and normalized (see ``normalize_timestamp``). When absent, the
 # accumulator stamps the record with the run time.
 TIMESTAMP_COLUMN = "timestamp"
+
+# Maps a query entry's shard-config key to the QuerySharder that handles it.
+# A query carrying one of these keys is run per shard (see
+# ``run_sharded_query``); to add another backend, register its sharder here.
+SHARDERS: Mapping[str, QuerySharder] = {
+    "bigtable_shard": BigtableQuerySharder()
+}
+
+
+def select_sharder(
+    query_dict: Mapping[str, Any], sharders: Mapping[str, QuerySharder]
+) -> Optional[Tuple[Mapping[str, Any], QuerySharder]]:
+    """
+    Returns the ``(shard_config, sharder)`` for whichever registered
+    shard-config key is present in ``query_dict``, or ``None`` for an unsharded
+    query.
+    """
+    for key, sharder in sharders.items():
+        shard_config = query_dict.get(key)
+        if shard_config is not None:
+            return shard_config, sharder
+    return None
 
 
 def normalize_timestamp(value: Any) -> Optional[int]:
@@ -68,11 +103,15 @@ def normalize_timestamp(value: Any) -> Optional[int]:
 
 
 def parse_and_assert_query_file(
-    query_file: TextIO,
-) -> Sequence[Mapping[str, str]]:
+    query_file: TextIO, sharders: Mapping[str, QuerySharder] = SHARDERS
+) -> Sequence[Mapping[str, Any]]:
     """
     Validates that the query file is a non-empty list and that each entry
     contains a ``query``, a ``shared_resource_id`` and a ``unit``.
+
+    An entry may optionally carry a shard-config key (e.g. ``bigtable_shard``)
+    to run the query once per shard (see ``run_sharded_query``). When present
+    its config is validated by the corresponding ``QuerySharder``.
     """
     import json
 
@@ -84,6 +123,11 @@ def parse_and_assert_query_file(
         assert "query" in query_dict
         assert "shared_resource_id" in query_dict
         assert "unit" in query_dict
+
+        selected = select_sharder(query_dict, sharders)
+        if selected is not None:
+            shard_config, sharder = selected
+            sharder.validate_config(shard_config, query_dict["query"])
 
     return query_list
 
@@ -121,31 +165,115 @@ def process_rows(
     return record_list
 
 
+def run_sharded_query(
+    bq_client: bigquery.Client,
+    query: str,
+    shard_config: Mapping[str, Any],
+    sharder: QuerySharder,
+) -> Iterator[Mapping[str, Any]]:
+    """
+    Runs ``query`` once per shard and yields every row.
+
+    The query is broken into shards by ``sharder`` (see ``QuerySharder``).
+    Each shard is a self-contained query bounded to a slice of the source
+    table. This is useful for evading BigQuery's 6h timeout for long-running
+    queries.
+
+    Partial per-shard results are combined by the caller.
+    """
+    shard_queries = sharder.build_shard_queries(query, shard_config)
+    logger.info("Query split into %d shard(s)", len(shard_queries))
+
+    for index, shard in enumerate(shard_queries):
+        logger.info(
+            "Running shard %d/%d %s",
+            index + 1,
+            len(shard_queries),
+            shard.description,
+        )
+        job_config = bigquery.QueryJobConfig(query_parameters=shard.parameters)
+        query_job = bq_client.query(shard.sql, job_config=job_config)
+        yield from query_job.result()
+
+
+def aggregate_records(
+    records: Iterable[UsageAccumulatorRecord],
+) -> List[UsageAccumulatorRecord]:
+    """
+    Sums record amounts sharing the same
+    ``(resource_id, app_feature, usage_type, timestamp)`` key.
+    """
+    totals: Dict[Tuple[str, str, UsageUnit, Optional[int]], int] = {}
+    for record in records:
+        key = (
+            record.resource_id,
+            record.app_feature,
+            record.usage_type,
+            record.timestamp,
+        )
+        totals[key] = totals.get(key, 0) + record.amount
+
+    return [
+        UsageAccumulatorRecord(
+            resource_id=resource_id,
+            app_feature=app_feature,
+            amount=amount,
+            usage_type=usage_type,
+            timestamp=timestamp,
+        )
+        for (
+            resource_id,
+            app_feature,
+            usage_type,
+            timestamp,
+        ), amount in totals.items()
+    ]
+
+
 def main(
     query_file: TextIO,
     usage_accumulator: UsageAccumulator,
     bq_client: bigquery.Client,
     dry_run: bool,
+    sharders: Optional[Mapping[str, QuerySharder]] = None,
 ) -> None:
     """
     query_file: File with a list of dictionaries, each containing a BigQuery
-                ``query``, a ``shared_resource_id`` and a ``unit``.
+                ``query``, a ``shared_resource_id`` and a ``unit``. An entry
+                may also carry a shard-config key (e.g. ``bigtable_shard``) to
+                break the query into shards.
     usage_accumulator: UsageAccumulator object.
     bq_client: BigQuery client used to run the queries.
     dry_run: When True, log the records instead of producing them to Kafka.
+    sharders: Registry mapping shard-config keys to their ``QuerySharder``;
+              defaults to ``SHARDERS``. Injectable for testing.
     """
-    query_list = parse_and_assert_query_file(query_file)
+    if sharders is None:
+        sharders = SHARDERS
+
+    query_list = parse_and_assert_query_file(query_file, sharders)
     record_list: List[UsageAccumulatorRecord] = []
     for query_dict in query_list:
         query = query_dict["query"]
         unit = query_dict["unit"]
         shared_resource_id = query_dict["shared_resource_id"]
+        selected = select_sharder(query_dict, sharders)
 
         assert_valid_unit(unit)
         usage_unit = UsageUnit(unit.lower())
 
-        rows = bq_client.query(query).result()
-        record_list.extend(process_rows(rows, usage_unit, shared_resource_id))
+        if selected is not None:
+            shard_config, sharder = selected
+            rows: Iterable[Mapping[str, Any]] = run_sharded_query(
+                bq_client, query, shard_config, sharder
+            )
+            records = process_rows(rows, usage_unit, shared_resource_id)
+            record_list.extend(aggregate_records(records))
+        else:
+            rows = bq_client.query(query).result()
+            record_list.extend(
+                process_rows(rows, usage_unit, shared_resource_id)
+            )
 
     if dry_run:
         log_records(logger, record_list)

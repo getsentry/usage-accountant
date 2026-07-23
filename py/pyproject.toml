@@ -17,8 +17,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Only needed for the `bigquery_fetcher` entrypoint
-bigquery = ['google-cloud-bigquery>=3.0.0']
+# Only needed for the `bigquery_fetcher` entrypoint. google-cloud-bigtable
+# backs the SampleRowKeys row-key sharding for Bigtable-backed queries.
+bigquery = [
+    'google-cloud-bigquery>=3.0.0',
+    'google-cloud-bigtable>=2.0.0',
+]
 
 [tool.setuptools.package-data]
 usageaccountant = ["py.typed"]
