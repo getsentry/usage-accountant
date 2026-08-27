@@ -1,6 +1,6 @@
 #!/bin/bash
 
-checks-githubactions-checkruns \
+checks-githubactions-checkruns2 \
   --timeout-mins 60 \
   getsentry/usage-accountant \
   ${GO_REVISION_USAGE_ACCOUNTANT_REPO} \
