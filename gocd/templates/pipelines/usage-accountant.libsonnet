@@ -27,7 +27,7 @@ function(region) {
             timeout: 1800,
             elastic_profile_id: 'usage-accountant',
             environment_variables: {
-              // Required for checkruns.
+              // Required for checkruns2.
               GITHUB_APP_ID: '{{SECRET:[devinfra-github][app_id]}}',
               GITHUB_APP_PRIVATE_KEY: '{{SECRET:[devinfra-github][private_key]}}',
             },
