@@ -27,8 +27,9 @@ function(region) {
             timeout: 1800,
             elastic_profile_id: 'usage-accountant',
             environment_variables: {
-              // Required for checkruns.
-              GITHUB_TOKEN: '{{SECRET:[devinfra-github][token]}}',
+              // Required for checkruns2.
+              GITHUB_APP_ID: '{{SECRET:[devinfra-github][app_id]}}',
+              GITHUB_APP_PRIVATE_KEY: '{{SECRET:[devinfra-github][private_key]}}',
             },
             tasks: [
               gocdtasks.script(importstr '../bash/check-github.sh'),
