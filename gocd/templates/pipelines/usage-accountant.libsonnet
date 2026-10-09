@@ -7,6 +7,9 @@ local gocdtasks = import 'github.com/getsentry/gocd-jsonnet/libs/gocd-tasks.libs
 // - https://www.notion.so/sentry/GoCD-New-Service-Quickstart-6d8db7a6964049b3b0e78b8a4b52e25d
 function(region) {
   environment_variables: {
+    // k8s-deploy dispatches deployment workflows using GitHub App credentials.
+    GITHUB_APP_ID: '{{SECRET:[devinfra-github][app_id]}}',
+    GITHUB_APP_PRIVATE_KEY: '{{SECRET:[devinfra-github][private_key]}}',
     SENTRY_REGION: region,
   },
   lock_behavior: 'unlockWhenFinished',
@@ -26,11 +29,6 @@ function(region) {
           checks: {
             timeout: 1800,
             elastic_profile_id: 'usage-accountant',
-            environment_variables: {
-              // Required for checkruns2.
-              GITHUB_APP_ID: '{{SECRET:[devinfra-github][app_id]}}',
-              GITHUB_APP_PRIVATE_KEY: '{{SECRET:[devinfra-github][private_key]}}',
-            },
             tasks: [
               gocdtasks.script(importstr '../bash/check-github.sh'),
             ],
