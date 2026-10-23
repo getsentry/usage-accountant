@@ -174,8 +174,9 @@ def warn_multiple_units(series_list: Sequence[DatadogResponseSeries]) -> None:
     if not series_list:
         return
 
-    unit_list = series_list[0]["unit"]
-    if unit_list and unit_list[1] is not None:
+    # Datadog omits `unit` entirely for metrics without unit metadata.
+    unit_list = series_list[0].get("unit")
+    if unit_list and len(unit_list) > 1 and unit_list[1] is not None:
         logger.warning(f"Received multiple units from Datadog: {unit_list}.")
 
 

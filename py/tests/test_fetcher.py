@@ -131,6 +131,25 @@ class TestDatadogFetcher(unittest.TestCase):
             )
             assert len(cm.output) == 1
 
+    def test_warn_multiple_units_no_unit(self) -> None:
+        """
+        Datadog omits `unit` for metrics without unit metadata.
+        """
+        series_list = self.good_response["series"]
+        series_list[0].pop("unit")  # type: ignore
+        with self.assertNoLogs("fetcher"):
+            ddf.warn_multiple_units(
+                cast(Sequence[ddf.DatadogResponseSeries], series_list)
+            )
+
+    def test_warn_multiple_units_single_unit(self) -> None:
+        series_list = self.good_response["series"]
+        series_list[0]["unit"] = [{"plural": "bytes"}]  # type: ignore
+        with self.assertNoLogs("fetcher"):
+            ddf.warn_multiple_units(
+                cast(Sequence[ddf.DatadogResponseSeries], series_list)
+            )
+
     def test_warn_multiple_units_empty_series(self) -> None:
         """
         Test that warn_multiple_units handles empty series list gracefully.
