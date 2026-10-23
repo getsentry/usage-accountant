@@ -283,6 +283,33 @@ class TestDatadogFetcher(unittest.TestCase):
 
     @patch("usageaccountant.datadog_fetcher.query_datadog")
     @patch("time.time")
+    def test_main_series_missing_unit_key(
+        self, mock_time: Mock, mock_query_dd: Mock
+    ) -> None:
+        """
+        Datadog can omit the "unit" key from a series entirely. With a
+        configured unit, main() should still record the data.
+        """
+        self.good_response["series"][0].pop("unit")  # type: ignore
+        mock_query_dd.return_value = self.good_response
+        mock_time.return_value = 1
+
+        ddf.main(
+            query_file=StringIO(self.query_str),
+            start_time=1,
+            period_seconds=2,
+            usage_accumulator=self.usage_accumulator,
+            dry_run=False,
+        )
+
+        msg1 = self.broker.consume(Partition(self.topic, 0), 0)
+        assert msg1 is not None
+
+        msg2 = self.broker.consume(Partition(self.topic, 0), 1)
+        assert msg2 is None
+
+    @patch("usageaccountant.datadog_fetcher.query_datadog")
+    @patch("time.time")
     def test_main_no_unit(self, mock_time: Mock, mock_query_dd: Mock) -> None:
         mock_query_dd.return_value = self.good_response
         mock_time.return_value = 1
