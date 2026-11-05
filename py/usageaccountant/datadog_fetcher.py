@@ -2,6 +2,8 @@ import argparse
 import json
 import logging
 import os
+import random
+import time
 import urllib.parse
 from typing import (
     Any,
@@ -16,6 +18,7 @@ from typing import (
     TypedDict,
     cast,
 )
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from usageaccountant.accumulator import (
@@ -28,6 +31,10 @@ headers = {
     "DD-APPLICATION-KEY": os.environ.get("DATADOG_APP_KEY", ""),
     "DD-API-KEY": os.environ.get("DATADOG_API_KEY", ""),
 }
+
+QUERY_MAX_ATTEMPTS = 5
+QUERY_BACKOFF_BASE_SECONDS = 2.0
+QUERY_TIMEOUT_SECONDS = 30
 
 logger = logging.getLogger("fetcher")
 logging.basicConfig(
@@ -196,9 +203,36 @@ def query_datadog(query: str, start_time: int, end_time: int) -> Any:
     full_url = f"{base_url}?{query_string}"
 
     request = Request(url=full_url, headers=headers)
-    response = urlopen(request).read()
+    for attempt in range(1, QUERY_MAX_ATTEMPTS):
+        try:
+            return _fetch_json(request)
+        except (URLError, TimeoutError, ConnectionError) as e:
+            if not _is_retryable(e):
+                raise
+            delay = QUERY_BACKOFF_BASE_SECONDS * 2 ** (attempt - 1)
+            delay += random.uniform(0, delay)
+            logger.warning(
+                f"Datadog query failed ({e}), attempt {attempt} of "
+                f"{QUERY_MAX_ATTEMPTS}; retrying in {delay:.1f}s."
+            )
+            time.sleep(delay)
 
+    return _fetch_json(request)
+
+
+def _fetch_json(request: Request) -> Any:
+    response = urlopen(request, timeout=QUERY_TIMEOUT_SECONDS).read()
     return json.loads(response)
+
+
+def _is_retryable(error: Exception) -> bool:
+    """
+    Rate limits, server errors, and network failures are transient.
+    Other HTTP errors, such as 400 or 403, will not succeed on retry.
+    """
+    if isinstance(error, HTTPError):
+        return error.code == 429 or error.code >= 500
+    return True
 
 
 def parse_and_assert_response_series(
@@ -447,8 +481,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.start_time is None:
-        import time
-
         current_time = int(time.time())
         args.start_time = (
             current_time

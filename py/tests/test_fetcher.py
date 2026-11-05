@@ -1,8 +1,10 @@
 import copy
 import os
 import unittest
+from email.message import Message
 from io import StringIO
 from unittest.mock import Mock, patch
+from urllib.error import HTTPError, URLError
 
 from arroyo.backends.kafka.consumer import KafkaPayload
 from arroyo.backends.local.backend import LocalBroker
@@ -331,3 +333,59 @@ class TestDatadogFetcher(unittest.TestCase):
 
         msg2 = self.broker.consume(Partition(self.topic, 0), 1)
         assert msg2 is None
+
+
+def _http_error(code: int) -> HTTPError:
+    return HTTPError(
+        "https://api.datadoghq.com", code, "error", Message(), None
+    )
+
+
+def _ok_response() -> Mock:
+    response = Mock()
+    response.read.return_value = b'{"series": []}'
+    return response
+
+
+@patch("usageaccountant.datadog_fetcher.time.sleep")
+@patch("usageaccountant.datadog_fetcher.urlopen")
+class TestQueryDatadogRetry(unittest.TestCase):
+    def test_retries_server_error(
+        self, mock_urlopen: Mock, mock_sleep: Mock
+    ) -> None:
+        mock_urlopen.side_effect = [_http_error(503), _ok_response()]
+
+        assert ddf.query_datadog("q", 0, 1) == {"series": []}
+        assert mock_urlopen.call_count == 2
+        assert mock_sleep.call_count == 1
+
+    def test_retries_network_error(
+        self, mock_urlopen: Mock, mock_sleep: Mock
+    ) -> None:
+        mock_urlopen.side_effect = [
+            URLError("timed out"),
+            TimeoutError(),
+            _http_error(429),
+            _ok_response(),
+        ]
+
+        assert ddf.query_datadog("q", 0, 1) == {"series": []}
+        assert mock_urlopen.call_count == 4
+
+    def test_does_not_retry_client_error(
+        self, mock_urlopen: Mock, mock_sleep: Mock
+    ) -> None:
+        mock_urlopen.side_effect = [_http_error(403)]
+
+        self.assertRaises(HTTPError, ddf.query_datadog, "q", 0, 1)
+        assert mock_urlopen.call_count == 1
+        mock_sleep.assert_not_called()
+
+    def test_gives_up_after_max_attempts(
+        self, mock_urlopen: Mock, mock_sleep: Mock
+    ) -> None:
+        mock_urlopen.side_effect = _http_error(503)
+
+        self.assertRaises(HTTPError, ddf.query_datadog, "q", 0, 1)
+        assert mock_urlopen.call_count == ddf.QUERY_MAX_ATTEMPTS
+        assert mock_sleep.call_count == ddf.QUERY_MAX_ATTEMPTS - 1
